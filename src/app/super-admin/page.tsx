@@ -67,12 +67,36 @@ export default function SuperAdminPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       
-      // Refresh list to show new code
       fetchRealUsers()
     } catch (err: any) {
       alert(err.message || 'Failed to regenerate code')
     } finally {
       setActionLoadingId(null)
+    }
+  }
+
+  // 🔑 Reset Password for Any User
+  const handleResetPassword = async (userId: string, email: string) => {
+    const newPassword = prompt(`Enter new temporary password for ${email}:`)
+    if (!newPassword) return
+
+    if (newPassword.length < 6) {
+      alert('Password must be at least 6 characters long.')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, newPassword })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      alert('Password updated successfully!')
+    } catch (err: any) {
+      alert('Error: ' + err.message)
     }
   }
 
@@ -192,7 +216,7 @@ export default function SuperAdminPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Role Level</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Admin Cipher</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Created On</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Last Activity</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Actions / Last Activity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -235,7 +259,17 @@ export default function SuperAdminPage() {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-400">{formatDate(officer.created_at)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-500">{formatDate(officer.last_sign_in_at)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-500 flex items-center gap-3">
+                        <span>{formatDate(officer.last_sign_in_at)}</span>
+                        {officer.user_metadata?.role !== 'super_admin' && (
+                          <button
+                            onClick={() => handleResetPassword(officer.id, officer.email)}
+                            className="bg-amber-500/10 hover:bg-amber-500/20 text-xs text-amber-400 px-3 py-1.5 rounded font-semibold transition-all border border-amber-500/30"
+                          >
+                            🔑 Reset Pass
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))
                 )}
