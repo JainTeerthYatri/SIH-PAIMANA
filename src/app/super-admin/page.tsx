@@ -1,21 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ShieldAlert, Users, Activity, Key, LogOut, Trash2, ShieldCheck, Database, RefreshCcw, Plus, X, Lock } from 'lucide-react'
+import { ShieldAlert, Users, Activity, Key, LogOut, ShieldCheck, Database, RefreshCcw, Plus, X, Lock } from 'lucide-react'
 
-// Supabase Auth User Interface
 interface Officer {
   id: string
   email: string
   created_at: string
   last_sign_in_at: string | null
-  user_metadata: { role?: string }
+  user_metadata: { role?: string; monthly_admin_code?: string }
 }
 
 export default function SuperAdminPage() {
   const [loading, setLoading] = useState(true)
   const [officers, setOfficers] = useState<Officer[]>([])
   
-  // 🆕 Modal & Form State (With secretKey for dual-verification)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUser, setNewUser] = useState({ 
     email: '', 
@@ -25,8 +23,8 @@ export default function SuperAdminPage() {
   })
   const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [modalMsg, setModalMsg] = useState('')
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
 
-  // 🔄 Fetch Real Users from API
   const fetchRealUsers = async () => {
     try {
       const res = await fetch('/api/admin/users')
@@ -39,7 +37,6 @@ export default function SuperAdminPage() {
     }
   }
 
-  // 🛡️ God Mode Protection Check
   useEffect(() => {
     if (!document.cookie.includes('paimana_godmode=true')) {
       window.location.href = '/register'
@@ -58,7 +55,27 @@ export default function SuperAdminPage() {
     return new Date(dateString).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
   }
 
-  // 🚀 Handle Create User Form (With Security Catch)
+  // 🔄 Regenerate 8-Digit Monthly Code for Specific Admin
+  const handleRegenerateCode = async (userId: string) => {
+    setActionLoadingId(userId)
+    try {
+      const res = await fetch('/api/admin/regenerate-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      
+      // Refresh list to show new code
+      fetchRealUsers()
+    } catch (err: any) {
+      alert(err.message || 'Failed to regenerate code')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setModalStatus('loading')
@@ -76,12 +93,10 @@ export default function SuperAdminPage() {
       
       setModalStatus('success')
       setModalMsg(data.message)
-      fetchRealUsers() // Refresh table automatically
+      fetchRealUsers() 
       
-      // Reset full form including secretKey
       setNewUser({ email: '', password: '', role: 'officer', secretKey: '' }) 
       
-      // Auto-close modal after 2 seconds
       setTimeout(() => {
         setIsModalOpen(false)
         setModalStatus('idle')
@@ -98,7 +113,6 @@ export default function SuperAdminPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-red-500/30 relative overflow-x-hidden">
       
-      {/* 🔴 TOP WARNING BAR */}
       <div className="bg-red-600 text-white text-xs py-1.5 px-6 flex justify-between items-center font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(239,68,68,0.5)]">
         <div className="flex items-center gap-2 animate-pulse">
           <ShieldAlert className="w-4 h-4" />
@@ -107,7 +121,6 @@ export default function SuperAdminPage() {
         <span className="hidden sm:inline">MoSPI Central Command</span>
       </div>
 
-      {/* 🔵 NAVBAR */}
       <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -128,7 +141,6 @@ export default function SuperAdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
         
-        {/* 📊 STATS CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl">
             <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl"><Users className="w-8 h-8" /></div>
@@ -156,12 +168,11 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        {/* 📋 MAIN USERS TABLE */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-4 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-              <h2 className="text-xl font-bold text-white">Live Officer Directory</h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage network access and permissions</p>
+              <h2 className="text-xl font-bold text-white">Live Officer & Admin Directory</h2>
+              <p className="text-xs sm:text-sm text-slate-500 mt-1">Manage network access, roles, and 8-digit monthly ciphers</p>
             </div>
             
             <button 
@@ -179,6 +190,7 @@ export default function SuperAdminPage() {
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Email ID</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Role Level</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Monthly Admin Cipher</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Created On</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Last Activity</th>
                 </tr>
@@ -186,7 +198,7 @@ export default function SuperAdminPage() {
               <tbody className="divide-y divide-slate-800">
                 {officers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-slate-500">Fetching network identities...</td>
+                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500">Fetching network identities...</td>
                   </tr>
                 ) : (
                   officers.map((officer) => (
@@ -203,6 +215,25 @@ export default function SuperAdminPage() {
                           <span className="text-blue-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-blue-500/10 px-2 py-1 rounded">Officer</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {officer.user_metadata?.role === 'admin' ? (
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono bg-slate-950 px-3 py-1 rounded border border-slate-700 text-emerald-400 font-bold tracking-widest">
+                              {officer.user_metadata?.monthly_admin_code || 'Not Set'}
+                            </span>
+                            <button
+                              onClick={() => handleRegenerateCode(officer.id)}
+                              disabled={actionLoadingId === officer.id}
+                              className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-3 py-1.5 rounded font-semibold transition-all border border-slate-700 flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <RefreshCcw className={`w-3 h-3 ${actionLoadingId === officer.id ? 'animate-spin' : ''}`} />
+                              Regenerate
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-600 text-xs italic">N/A (Standard Officer)</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-400">{formatDate(officer.created_at)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-500">{formatDate(officer.last_sign_in_at)}</td>
                     </tr>
@@ -214,7 +245,6 @@ export default function SuperAdminPage() {
         </div>
       </main>
 
-      {/* 🔐 MODAL: PROVISION NEW USER */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
@@ -232,7 +262,6 @@ export default function SuperAdminPage() {
             <h2 className="text-xl font-bold text-white mb-2">Create New Account</h2>
             <p className="text-sm text-slate-400 mb-6">Provision access for a new MoSPI official.</p>
             
-            {/* Status Messages */}
             {modalStatus === 'error' && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-start gap-2">
                 <ShieldAlert className="w-5 h-5 shrink-0" />
@@ -246,7 +275,6 @@ export default function SuperAdminPage() {
               </div>
             )}
             
-            {/* Form */}
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-300 mb-1">Official Email</label>
@@ -279,7 +307,6 @@ export default function SuperAdminPage() {
                 </select>
               </div>
 
-              {/* 🔴 THE SECURITY CATCH: SECONDARY AUTHORIZATION */}
               <div className="pt-2">
                 <label className="block text-sm font-bold text-red-400 mb-1 flex items-center gap-1.5">
                   <Lock className="w-4 h-4" />
