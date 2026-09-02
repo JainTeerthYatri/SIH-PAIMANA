@@ -11,7 +11,7 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
 
-  // Links updated to match the new nested routing
+  // Navigation items pointing to the nested routes, including AI Analytics
   const navItems = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { name: 'All Projects', href: '/dashboard/projects', icon: FolderKanban },
@@ -20,7 +20,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   ]
 
   const handleLogout = () => {
+    // Clears both standard and god-mode session cookies securely on termination
     document.cookie = "paimana_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    document.cookie = "paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
     window.location.href = '/login'
   }
 
