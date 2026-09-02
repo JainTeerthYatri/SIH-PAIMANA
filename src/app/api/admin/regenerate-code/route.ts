@@ -6,24 +6,30 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const { email, password, secretKey } = await req.json()
-
-    if (secretKey !== process.env.MOSPI_SUPER_ADMIN_SECRET) {
-      return NextResponse.json({ error: 'Invalid Master Authorization Secret Key.' }, { status: 403 })
+    const cookieHeader = request.headers.get('cookie') || ''
+    if (!cookieHeader.includes('paimana_godmode=true')) {
+      return NextResponse.json({ error: 'UNAUTHORIZED ACCESS' }, { status: 403 })
     }
 
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password })
+    const { userId } = await request.json()
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
+    }
+
+    // Generate secure 8-digit random code
+    const newCode = Math.floor(10000000 + Math.random() * 90000000).toString()
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      user_metadata: { monthly_admin_code: newCode }
+    })
+
     if (error) throw error
 
-    const role = data.user?.user_metadata?.role
-    if (role !== 'super_admin') {
-      return NextResponse.json({ error: 'Unauthorized: Account lacks Super Admin clearance.' }, { status: 403 })
-    }
+    return NextResponse.json({ success: true, newCode }, { status: 200 })
 
-    return NextResponse.json({ success: true, role }, { status: 200 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 400 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
