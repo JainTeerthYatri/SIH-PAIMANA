@@ -15,7 +15,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const navItems = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
     { name: 'All Projects', href: '/dashboard/projects', icon: FolderKanban },
-    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'AI Analytics', href: '/dashboard/ai-analytics', icon: BarChart3 },
     { name: 'AI Chatbot', href: '/dashboard/chatbot', icon: Bot },
   ]
 
