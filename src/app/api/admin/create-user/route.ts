@@ -30,7 +30,6 @@ export async function POST(request: Request) {
     const DAILY_2FA = getDynamic2FACode() // Normal Admin ke liye
 
     // 🛡️ ROLE-BASED PRIVILEGE ENFORCEMENT
-    
     if (isGod) {
       // 1. SUPER ADMIN RULES
       if (secretKey !== SUPER_ADMIN_SECRET) {
@@ -39,8 +38,6 @@ export async function POST(request: Request) {
           { status: 403 }
         )
       }
-      // Super admin is allowed to create any role (admin or officer)
-      
     } else if (isAdmin) {
       // 2. NORMAL ADMIN RULES
       if (role !== 'officer') {
@@ -58,12 +55,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // 🚀 Create user silently
+    // 🆕 Generate 8-Digit Monthly Code automatically if the new user is an 'admin'
+    const initialMonthlyCode = role === 'admin' 
+      ? Math.floor(10000000 + Math.random() * 90000000).toString() 
+      : null
+
+    // 🚀 Create user silently with role and monthly code
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
       email_confirm: true, 
-      user_metadata: { role: role }
+      user_metadata: { 
+        role: role, 
+        monthly_admin_code: initialMonthlyCode 
+      }
     })
 
     if (error) throw error
