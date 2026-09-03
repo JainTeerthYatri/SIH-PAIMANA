@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, Clock } from 'lucide-react'
+import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface RiskProject {
   projectName: string
@@ -21,6 +21,10 @@ export default function AIAnalyticsPage() {
   const [projects, setProjects] = useState<RiskProject[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRisk, setFilterRisk] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL')
+  
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 5
 
   useEffect(() => {
     async function fetchRiskAnalysis() {
@@ -28,7 +32,6 @@ export default function AIAnalyticsPage() {
         const res = await fetch('/api/ai/analyze-risks')
         const data = await res.json()
         if (data.success) {
-          // Sort by risk score (highest first)
           const sortedProjects = data.analysis.sort((a: RiskProject, b: RiskProject) => b.riskScore - a.riskScore)
           setProjects(sortedProjects)
         }
@@ -41,11 +44,23 @@ export default function AIAnalyticsPage() {
     fetchRiskAnalysis()
   }, [])
 
+  // Reset page on filter/search change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, filterRisk])
+
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || p.state.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRisk = filterRisk === 'ALL' || p.riskLevel === filterRisk
     return matchesSearch && matchesRisk
   })
+
+  // Pagination calculation
+  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage)
+  const paginatedProjects = filteredProjects.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="p-6 sm:p-10 bg-slate-50 min-h-screen text-slate-900">
@@ -91,7 +106,7 @@ export default function AIAnalyticsPage() {
       </div>
 
       {/* Project-Wise Data List */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between">
         {loading ? (
           <div className="p-10 text-center text-slate-500 font-medium animate-pulse">
             Analyzing projects and generating AI insights...
@@ -100,7 +115,7 @@ export default function AIAnalyticsPage() {
           <div className="p-10 text-center text-slate-500">No projects found for the selected criteria.</div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {filteredProjects.map((project, idx) => (
+            {paginatedProjects.map((project, idx) => (
               <div key={idx} className="p-6 hover:bg-slate-50 transition-colors">
                 <div className="flex flex-col lg:flex-row gap-6">
                   
@@ -180,6 +195,31 @@ export default function AIAnalyticsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Pagination Controls Footer */}
+        {!loading && totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              Showing page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span> ({filteredProjects.length} total projects)
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center gap-1 transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 flex items-center gap-1 transition-all"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
       </div>
