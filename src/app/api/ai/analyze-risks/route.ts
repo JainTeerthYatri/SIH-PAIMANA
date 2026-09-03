@@ -1,3 +1,4 @@
+// src/app/api/ai/analyze-risks/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
@@ -9,18 +10,16 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
   try {
-    // 1. Fetch raw projects from Supabase
+    // Removed .limit(15) so ALL projects are fetched from Supabase
     const { data: rawProjects, error } = await supabase
       .from('paimana_projects')
-      .select('*')
-      .limit(15);
+      .select('*');
 
     if (error) throw error;
     if (!rawProjects || rawProjects.length === 0) {
       return NextResponse.json({ success: true, analysis: [] });
     }
 
-    // 2. Normalize and map fields
     const projects = rawProjects.map((p: any) => ({
       projectName: p.project_name || p.projectName || 'Unnamed Project',
       state: p.state || 'National',
@@ -34,9 +33,8 @@ export async function GET(request: Request) {
     let dataSource = 'Gemini AI Neural Audit Engine';
 
     try {
-      // Check if API key exists before calling Gemini
       if (!process.env.GEMINI_API_KEY) {
-        throw new Error('GEMINI_API_KEY is not defined in environment variables');
+        throw new Error('GEMINI_API_KEY is not defined');
       }
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -84,10 +82,7 @@ export async function GET(request: Request) {
       aiAnalysisResult = JSON.parse(aiText);
 
     } catch (aiErr: any) {
-      console.warn('Gemini API call failed or missing key, falling back to smart neural simulation:', aiErr.message);
       dataSource = 'Algorithmic Fallback Engine';
-
-      // Bulletproof Fallback: Never crash the UI for judges!
       aiAnalysisResult = projects.map((p: any) => {
         const costOverrun = Number((p.anticipatedCost - p.originalCost).toFixed(2));
         const riskScore = p.physicalProgress < 40 && costOverrun > 10 ? 82 : p.physicalProgress < 70 ? 52 : 18;
@@ -114,7 +109,6 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('API Route Fatal Error:', err);
     return NextResponse.json(
       { success: false, error: err.message || 'Failed to process request' },
       { status: 500 }
