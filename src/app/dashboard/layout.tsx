@@ -32,7 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navLinks = [
     { name: 'Dashboard Home', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Project Directory', href: '/dashboard/projects', icon: FolderKanban },
-    { name: 'AI Analytics', href: '/dashboard/analytics', icon: PieChart },
+    { name: 'AI Analytics', href: '/dashboard/ai-analytics', icon: PieChart },
     { name: 'Predictive Chatbot', href: '/dashboard/chatbot', icon: Bot },
   ]
 
