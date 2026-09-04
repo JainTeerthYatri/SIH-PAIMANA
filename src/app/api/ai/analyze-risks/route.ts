@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from '@google/genai';
 
 export const maxDuration = 60;
 
@@ -9,8 +8,21 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Initialize Gemini SDK
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+// Ultra-fast timeout helper (0.5s / 500ms check)
+async function fetchWithTimeout(promise: Promise<Response>, timeoutMs: number = 500): Promise<Response> {
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error('AI Provider Timeout exceeded')), timeoutMs);
+  });
+  try {
+    const result = await Promise.race([promise, timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result as Response;
+  } catch (err) {
+    clearTimeout(timeoutId!);
+    throw err;
+  }
+}
 
 export async function GET(request: Request) {
   try {
@@ -18,6 +30,7 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
 
+    // 1. Fetch total count from Supabase
     const { count, error: countErr } = await supabase
       .from('paimana_projects')
       .select('*', { count: 'exact', head: true });
@@ -28,6 +41,7 @@ export async function GET(request: Request) {
 
     const totalCount = count || 819;
 
+    // 2. Fetch raw project records for this chunk
     const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
       .select('*')
@@ -42,7 +56,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const projects = rawProjects.map((p: any) => ({
+    const projectsPayload = rawProjects.map((p: any) => ({
       projectName: p.project_name || p.name || 'Unnamed Project',
       state: p.State || p.state || 'National',
       originalCost: Number(p.original_cost_cr || p.original_cost || 100),
@@ -52,8 +66,8 @@ export async function GET(request: Request) {
     }));
 
     const prompt = `
-      Analyze these infrastructure projects and return a strict JSON array containing the analysis for each. 
-      Projects data: ${JSON.stringify(projects)}
+      Analyze these infrastructure projects and return a strict JSON array containing the analysis for each item. 
+      Projects data: ${JSON.stringify(projectsPayload)}
 
       Required JSON Schema per item in array:
       [
@@ -78,32 +92,25 @@ export async function GET(request: Request) {
     let aiAnalysisResult = null;
     let usedProvider = 'gemini';
 
-    // Ultra-fast timeout wrapper (0.5 seconds / 500ms check)
-    const fetchWithTimeout = async (promise: Promise<any>, timeoutMs: number = 500) => {
-      let timeoutId: NodeJS.Timeout;
-      const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Timeout exceeded')), timeoutMs);
-      });
+    // 3. Try Gemini First with 0.5s timeout
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
       try {
-        const result = await Promise.race([promise, timeoutPromise]);
-        clearTimeout(timeoutId!);
-        return result;
-      } catch (err) {
-        clearTimeout(timeoutId!);
-        throw err;
-      }
-    };
+        const geminiPromise = fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }]
+            }),
+          }
+        );
 
-    // Try Gemini First with 0.5s timeout constraint
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const geminiPromise = ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-        });
-
-        const response = await fetchWithTimeout(geminiPromise, 500);
-        const aiText = response.text || '';
+        const geminiRes = await fetchWithTimeout(geminiPromise, 500);
+        const geminiJson = await geminiRes.json();
+        
+        const aiText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
         const firstBracket = cleanedText.indexOf('[');
         const lastBracket = cleanedText.lastIndexOf(']');
@@ -111,22 +118,30 @@ export async function GET(request: Request) {
         if (firstBracket !== -1 && lastBracket !== -1) {
           aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
         }
-      } catch (err) {
-        // Gemini failed or took > 0.5s (likely 429 quota exhaustion), fallback triggers instantly
+      } catch (geminiError) {
+        console.warn('Gemini primary timeout or error, switching to Hugging Face...', geminiError);
         usedProvider = 'huggingface';
       }
     } else {
       usedProvider = 'huggingface';
     }
 
-    // Fallback to Hugging Face if Gemini failed or wasn't available
+    // 4. Fallback to Hugging Face if Gemini failed or wasn't configured
     if (!aiAnalysisResult) {
+      const hfKey = process.env.HUGGINGFACE_API_KEY;
+      if (!hfKey) {
+        return NextResponse.json(
+          { success: false, error: 'Both Gemini and Hugging Face API keys are missing in environment variables.' },
+          { status: 500 }
+        );
+      }
+
       const hfPrompt = `[INST] ${prompt} [/INST]`;
       const hfResponse = await fetch(
         "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
         {
           headers: {
-            Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+            Authorization: `Bearer ${hfKey}`,
             "Content-Type": "application/json",
           },
           method: "POST",
@@ -138,13 +153,18 @@ export async function GET(request: Request) {
       );
 
       const hfResult = await hfResponse.json();
+
+      if (hfResult.error) {
+        throw new Error(`Hugging Face API Error: ${hfResult.error}`);
+      }
+
       const aiText = Array.isArray(hfResult) ? hfResult[0]?.generated_text : hfResult?.generated_text || '';
       const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
       const firstBracket = cleanedText.indexOf('[');
       const lastBracket = cleanedText.lastIndexOf(']');
 
       if (firstBracket === -1 || lastBracket === -1) {
-        return NextResponse.json({ success: false, error: 'All AI providers failed to return valid JSON' }, { status: 500 });
+        throw new Error('AI model failed to return valid JSON structure');
       }
 
       aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
@@ -163,7 +183,7 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('Fallback Pipeline Error:', err);
+    console.error('AI Pipeline Critical Error:', err);
     return NextResponse.json(
       { success: false, error: err.message || 'Internal Server Error' },
       { status: 500 }
