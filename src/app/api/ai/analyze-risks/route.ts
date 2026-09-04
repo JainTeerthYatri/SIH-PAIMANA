@@ -8,8 +8,19 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Ultra-fast timeout helper for AI provider switching (0.5s / 500ms check)
-async function fetchWithTimeout(promise: Promise<Response>, timeoutMs: number = 500): Promise<Response> {
+// Collect all available Gemini keys for multi-key distribution & rotation
+const getGeminiKeys = () => {
+  return [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY_5,
+  ].filter(Boolean) as string[];
+};
+
+async function fetchWithTimeout(promise: Promise<Response>, timeoutMs: number = 1000): Promise<Response> {
   let timeoutId: NodeJS.Timeout;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error('AI Provider Timeout exceeded')), timeoutMs);
@@ -30,19 +41,16 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
 
-    // 1. Fetch total count from Supabase
     const { count, error: countErr } = await supabase
       .from('paimana_projects')
       .select('*', { count: 'exact', head: true });
 
     if (countErr) {
-      console.error('Supabase Count Error:', countErr.message);
       return NextResponse.json({ success: false, error: `Supabase Count Error: ${countErr.message}` }, { status: 500 });
     }
 
     const totalCount = count || 819;
 
-    // 2. Fetch raw project records for this chunk
     const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
       .select('*')
@@ -67,7 +75,7 @@ export async function GET(request: Request) {
     }));
 
     const prompt = `
-      Analyze these infrastructure projects and return a strict JSON array containing the analysis for each item. 
+      Analyze these infrastructure projects using deep AI intelligence and return a strict JSON array containing the risk analysis for each item. 
       Projects data: ${JSON.stringify(projectsPayload)}
 
       Required JSON Schema per item in array:
@@ -92,13 +100,16 @@ export async function GET(request: Request) {
 
     let aiAnalysisResult = null;
     let usedProvider = 'gemini';
+    const geminiKeys = getGeminiKeys();
 
-    // 3. Try Gemini First with 0.5s timeout
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (geminiKey) {
+    // 1. Try Gemini Keys with load balancing rotation
+    if (geminiKeys.length > 0) {
+      const keyIndex = Math.floor(offset / limit) % geminiKeys.length;
+      const selectedKey = geminiKeys[keyIndex];
+
       try {
         const geminiPromise = fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -108,7 +119,7 @@ export async function GET(request: Request) {
           }
         );
 
-        const geminiRes = await fetchWithTimeout(geminiPromise, 500);
+        const geminiRes = await fetchWithTimeout(geminiPromise, 1200);
         const geminiJson = await geminiRes.json();
         
         const aiText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -120,18 +131,18 @@ export async function GET(request: Request) {
           aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
         }
       } catch (geminiError) {
-        console.warn('Gemini primary timeout or error, switching to Hugging Face...', geminiError);
+        console.warn(`Gemini key index ${keyIndex} failed, switching to Hugging Face AI...`, geminiError);
         usedProvider = 'huggingface';
       }
     } else {
       usedProvider = 'huggingface';
     }
 
-    // 4. Fallback to Hugging Face if Gemini failed or wasn't configured
+    // 2. Fallback to Hugging Face AI Model if Gemini failed
     if (!aiAnalysisResult) {
       const hfKey = process.env.HUGGINGFACE_API_KEY;
       if (!hfKey) {
-        throw new Error('Both Gemini and Hugging Face API keys are missing in environment variables.');
+        throw new Error('All Gemini keys failed and HUGGINGFACE_API_KEY is missing.');
       }
 
       const hfPrompt = `[INST] ${prompt} [/INST]`;
@@ -153,7 +164,7 @@ export async function GET(request: Request) {
       const hfResult = await hfResponse.json();
 
       if (hfResult.error) {
-        throw new Error(`Hugging Face API Error: ${typeof hfResult.error === 'string' ? hfResult.error : JSON.stringify(hfResult.error)}`);
+        throw new Error(`Hugging Face AI Error: ${typeof hfResult.error === 'string' ? hfResult.error : JSON.stringify(hfResult.error)}`);
       }
 
       const aiText = Array.isArray(hfResult) ? hfResult[0]?.generated_text : hfResult?.generated_text || '';
