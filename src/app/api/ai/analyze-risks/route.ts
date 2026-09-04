@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing in environment variables' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing' }, { status: 500 });
     }
 
     const { count, error: countErr } = await supabase
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       Analyze these infrastructure projects and return a strict JSON array containing the analysis for each:
       ${JSON.stringify(projects, null, 2)}
 
-      Return schema per item:
+      Required JSON Schema per item in array:
       {
         "projectName": "string",
         "state": "string",
@@ -67,11 +67,13 @@ export async function GET(request: Request) {
         "riskScore": number,
         "anomalies": ["string", "string"]
       }
-      Rules: Return ONLY a valid JSON array starting with [ and ending with ]. No markdown formatting.
+
+      CRITICAL: Return ONLY a valid JSON array starting with [ and ending with ]. Do not use markdown backticks.
     `;
 
+    // Updated to the current gemini-3.5-flash model
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: prompt,
     });
 
