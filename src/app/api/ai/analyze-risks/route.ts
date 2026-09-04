@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Ultra-fast timeout helper (0.5s / 500ms check)
+// Ultra-fast timeout helper for AI provider switching (0.5s / 500ms check)
 async function fetchWithTimeout(promise: Promise<Response>, timeoutMs: number = 500): Promise<Response> {
   let timeoutId: NodeJS.Timeout;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -36,6 +36,7 @@ export async function GET(request: Request) {
       .select('*', { count: 'exact', head: true });
 
     if (countErr) {
+      console.error('Supabase Count Error:', countErr.message);
       return NextResponse.json({ success: false, error: `Supabase Count Error: ${countErr.message}` }, { status: 500 });
     }
 
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       });
     }
 
-    const projectsPayload = rawProjects.map((p: any) => ({
+    const projectsPayload = rawProjects.map((p: Record<string, any>) => ({
       projectName: p.project_name || p.name || 'Unnamed Project',
       state: p.State || p.state || 'National',
       originalCost: Number(p.original_cost_cr || p.original_cost || 100),
@@ -130,10 +131,7 @@ export async function GET(request: Request) {
     if (!aiAnalysisResult) {
       const hfKey = process.env.HUGGINGFACE_API_KEY;
       if (!hfKey) {
-        return NextResponse.json(
-          { success: false, error: 'Both Gemini and Hugging Face API keys are missing in environment variables.' },
-          { status: 500 }
-        );
+        throw new Error('Both Gemini and Hugging Face API keys are missing in environment variables.');
       }
 
       const hfPrompt = `[INST] ${prompt} [/INST]`;
@@ -144,7 +142,7 @@ export async function GET(request: Request) {
             Authorization: `Bearer ${hfKey}`,
             "Content-Type": "application/json",
           },
-          method: "POST",
+          method: 'POST',
           body: JSON.stringify({
             inputs: hfPrompt,
             parameters: { max_new_tokens: 2000, temperature: 0.2, return_full_text: false }
@@ -155,7 +153,7 @@ export async function GET(request: Request) {
       const hfResult = await hfResponse.json();
 
       if (hfResult.error) {
-        throw new Error(`Hugging Face API Error: ${hfResult.error}`);
+        throw new Error(`Hugging Face API Error: ${typeof hfResult.error === 'string' ? hfResult.error : JSON.stringify(hfResult.error)}`);
       }
 
       const aiText = Array.isArray(hfResult) ? hfResult[0]?.generated_text : hfResult?.generated_text || '';
