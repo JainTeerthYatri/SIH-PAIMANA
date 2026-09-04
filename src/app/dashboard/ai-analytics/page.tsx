@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface RiskProject {
   projectName: string
@@ -30,13 +30,16 @@ export default function AIAnalyticsPage() {
     async function fetchAllChunks() {
       try {
         let offset = 0;
-        const limit = 10;
+        const limit = 25; // Increased chunk size for blazing-fast hackathon loading
         let hasMore = true;
         let accumulated: RiskProject[] = [];
 
         while (hasMore) {
           const res = await fetch(`/api/ai/analyze-risks?offset=${offset}&limit=${limit}`);
-          if (!res.ok) throw new Error(`Server returned status ${res.status}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Server returned status ${res.status}`);
+          }
           const data = await res.json();
 
           if (data.success && Array.isArray(data.analysis)) {
@@ -46,6 +49,11 @@ export default function AIAnalyticsPage() {
             
             offset = data.nextOffset;
             hasMore = data.hasMore;
+
+            // Ultra-fast 300ms pacing to keep demo snappy while avoiding API rate limits
+            if (hasMore) {
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
           } else {
             break;
           }
@@ -137,7 +145,7 @@ export default function AIAnalyticsPage() {
                 <div>
                   <p className="text-xs font-bold text-cyan-300 uppercase tracking-wide">Live AI Model Execution</p>
                   <p className="text-sm font-medium text-slate-100">
-                    Analyzed <span className="font-bold text-white">{loadingProgress.loaded}</span> of <span className="font-bold text-white">{loadingProgress.total || 819}</span> infrastructure projects in optimized batches...
+                    Analyzed <span className="font-bold text-white">{loadingProgress.loaded}</span> of <span className="font-bold text-white">{loadingProgress.total || 819}</span> infrastructure projects (Turbo Mode)...
                   </p>
                 </div>
               </div>
