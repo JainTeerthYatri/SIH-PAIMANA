@@ -19,16 +19,16 @@ export async function GET(request: Request) {
 
     if (error) throw error;
     if (!rawProjects || rawProjects.length === 0) {
-      return NextResponse.json({ success: true, analysis: [] });
+      return NextResponse.json({ success: false, error: 'No projects found in database table paimana_projects' });
     }
 
     const projects = rawProjects.map((p: any) => ({
-      projectName: p.project_name || p.projectName || 'Unnamed Project',
-      state: p.state || 'National',
-      originalCost: p.original_cost_cr || p.originalCost || 0,
-      anticipatedCost: p.anticipated_cost_cr || p.anticipatedCost || 0,
-      cumulativeExp: p.cumulative_exp_cr || p.cumulativeExp || 0,
-      physicalProgress: p.physical_progress || p.physicalProgress || 0,
+      projectName: p.project_name || 'Unnamed Project',
+      state: p.State || 'National',
+      originalCost: p.original_cost_cr || 0,
+      anticipatedCost: p.anticipated_cost_cr || 0,
+      cumulativeExp: p.cumulative_exp_cr || 0,
+      physicalProgress: p.physical_progress_pct || 0,
     }));
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -80,7 +80,6 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       analysis: aiAnalysisResult,
-      source: '100% Gemini AI Neural Engine'
     });
 
   } catch (err: any) {
