@@ -1,4 +1,3 @@
-// src/app/dashboard/ai-analytics/page.tsx
 'use client'
 import { useEffect, useState } from 'react'
 import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -24,56 +23,50 @@ export default function AIAnalyticsPage() {
   const [filterRisk, setFilterRisk] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL')
   
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 6 // Grid layout items per page
+  const itemsPerPage = 6
 
   useEffect(() => {
-    async function fetchRiskAnalysis() {
+    async function fetchAIAnalysis() {
       try {
         const res = await fetch('/api/ai/analyze-risks')
         const data = await res.json()
         if (data.success && Array.isArray(data.analysis)) {
-          const sortedProjects = data.analysis.sort((a: RiskProject, b: RiskProject) => b.riskScore - a.riskScore)
-          setProjects(sortedProjects)
+          const sorted = data.analysis.sort((a: RiskProject, b: RiskProject) => b.riskScore - a.riskScore)
+          setProjects(sorted)
         }
       } catch (err) {
-        console.error('Failed to fetch AI analysis', err)
+        console.error('Failed to load AI analytics', err)
       } finally {
         setLoading(false)
       }
     }
-    fetchRiskAnalysis()
+    fetchAIAnalysis()
   }, [])
 
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, filterRisk])
 
-  const filteredProjects = projects.filter(p => {
+  const filtered = projects.filter(p => {
     const matchesSearch = p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || p.state.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRisk = filterRisk === 'ALL' || p.riskLevel === filterRisk
     return matchesSearch && matchesRisk
   })
 
-  const totalPages = Math.ceil(filteredProjects.length / itemsPerPage)
-  const paginatedProjects = filteredProjects.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   return (
     <div className="p-6 sm:p-10 bg-slate-50 min-h-screen text-slate-900">
-      
-      {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#002244] flex items-center gap-2">
             <Sparkles className="w-8 h-8 text-blue-600" />
             Project-Wise AI Insights & Audit
           </h1>
-          <p className="text-slate-500 mt-1">Real-time LLM-driven risk scoring and anomaly detection across all records</p>
+          <p className="text-slate-500 mt-1">100% LLM-driven predictive risk scoring and neural anomaly detection</p>
         </div>
 
-        {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row gap-3">
           <input 
             type="text" 
@@ -103,24 +96,21 @@ export default function AIAnalyticsPage() {
         </div>
       </div>
 
-      {/* Main Grid Content */}
       {loading ? (
         <div className="p-20 text-center text-slate-500 font-semibold animate-pulse flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 rounded-2xl">
           <Sparkles className="w-8 h-8 text-blue-500 animate-spin" />
-          Running Gemini Neural Audit Engine across all database records...
+          Gemini AI is analyzing complete infrastructure records...
         </div>
-      ) : filteredProjects.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="p-20 text-center text-slate-500 font-medium bg-white border border-slate-200 rounded-2xl">
           No infrastructure projects found matching your filter criteria.
         </div>
       ) : (
         <>
-          {/* Card Grid Placement (2 Columns layout for clean UI tracing) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {paginatedProjects.map((project, idx) => (
+            {paginated.map((project, idx) => (
               <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
                 <div>
-                  {/* Top Bar: State & Risk Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                       {project.state}
@@ -137,10 +127,8 @@ export default function AIAnalyticsPage() {
                     </span>
                   </div>
 
-                  {/* Project Title */}
                   <h3 className="text-base font-bold text-[#002244] leading-snug mb-4">{project.projectName}</h3>
 
-                  {/* Key Metrics Row */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                       <p className="text-[10px] text-slate-400 uppercase font-bold">Physical Progress</p>
@@ -152,44 +140,36 @@ export default function AIAnalyticsPage() {
                     </div>
                   </div>
 
-                  {/* Financials Grid */}
                   <div className="grid grid-cols-4 gap-2 mb-4 text-center">
-                    <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                    <div className="bg-white p-2 rounded-lg border border-slate-100">
                       <p className="text-[9px] text-slate-400 uppercase font-bold">Original</p>
                       <p className="text-xs font-bold text-slate-700">₹{project.originalCost}Cr</p>
                     </div>
-                    <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                    <div className="bg-white p-2 rounded-lg border border-slate-100">
                       <p className="text-[9px] text-slate-400 uppercase font-bold">Anticipated</p>
                       <p className="text-xs font-bold text-slate-700">₹{project.anticipatedCost}Cr</p>
                     </div>
-                    <div className="bg-white p-2 rounded-lg border border-slate-100 shadow-2xs">
+                    <div className="bg-white p-2 rounded-lg border border-slate-100">
                       <p className="text-[9px] text-slate-400 uppercase font-bold">Overrun</p>
                       <p className="text-xs font-bold text-red-600">₹{project.costOverrun}Cr</p>
                     </div>
-                    <div className="bg-amber-50 p-2 rounded-lg border border-amber-100 shadow-2xs">
+                    <div className="bg-amber-50 p-2 rounded-lg border border-amber-100">
                       <p className="text-[9px] text-amber-600 uppercase font-bold">Delay</p>
                       <p className="text-xs font-bold text-amber-700 truncate">{project.estimatedDelayMonths}</p>
                     </div>
                   </div>
 
-                  {/* AI Anomalies Box */}
-                  <div className="bg-slate-50/80 rounded-xl p-3.5 border border-slate-100">
+                  <div className="bg-slate-50/85 rounded-xl p-3.5 border border-slate-100">
                     <p className="text-xs font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-purple-600" /> AI-Generated Audit Findings
                     </p>
                     <div className="space-y-1.5">
-                      {project.anomalies && project.anomalies.length > 0 ? (
-                        project.anomalies.map((anomaly, i) => (
-                          <div key={i} className="text-xs text-slate-700 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-start gap-2 shadow-2xs">
-                            <span className="text-red-500 font-bold">•</span>
-                            <span className="leading-tight">{anomaly}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-100">
-                          ✓ No structural anomalies detected.
+                      {project.anomalies?.map((anomaly, i) => (
+                        <div key={i} className="text-xs text-slate-700 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-start gap-2">
+                          <span className="text-red-500 font-bold">•</span>
+                          <span className="leading-tight">{anomaly}</span>
                         </div>
-                      )}
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -197,11 +177,10 @@ export default function AIAnalyticsPage() {
             ))}
           </div>
 
-          {/* Pagination Footer */}
           {totalPages > 1 && (
             <div className="mt-6 px-6 py-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between shadow-xs">
               <p className="text-xs text-slate-500">
-                Showing page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span> ({filteredProjects.length} total projects)
+                Showing page <span className="font-bold text-slate-700">{currentPage}</span> of <span className="font-bold text-slate-700">{totalPages}</span> ({filtered.length} total projects)
               </p>
               <div className="flex items-center gap-2">
                 <button
