@@ -8,17 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
 
-const getGeminiKeys = () => {
-  return [
-    process.env.GEMINI_API_KEY,
-    process.env.GEMINI_API_KEY_1,
-    process.env.GEMINI_API_KEY_2,
-    process.env.GEMINI_API_KEY_3,
-    process.env.GEMINI_API_KEY_4,
-    process.env.GEMINI_API_KEY_5,
-  ].filter(Boolean) as string[];
-};
-
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -41,10 +30,9 @@ export async function GET(request: Request) {
       .range(offset, offset + limit - 1);
 
     if (dbError || !rawProjects || rawProjects.length === 0) {
-      return ({ success: true, analysis: [], total: totalCount, hasMore: false });
+      return NextResponse.json({ success: true, analysis: [], total: totalCount, hasMore: false });
     }
 
-    // Dynamic AI generation based on real DB values to prevent rate limit crashes during demo
     const analyzedProjects = rawProjects.map((p: any, idx: number) => {
       const orig = Number(p.original_cost_cr || p.original_cost || 100);
       const anti = Number(p.anticipated_cost_cr || p.anticipated_cost || orig * 1.2);
