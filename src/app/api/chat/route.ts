@@ -48,7 +48,6 @@ function loadDataset(): ProjectRow[] {
   }
 }
 
-// Fetch active Groq models directly from API key
 async function getActiveGroqModels(apiKey: string): Promise<string[]> {
   try {
     const res = await fetch("https://api.groq.com/openai/v1/models", {
@@ -61,9 +60,9 @@ async function getActiveGroqModels(apiKey: string): Promise<string[]> {
       }
     }
   } catch (err) {
-    console.warn("Failed to dynamically fetch active models from Groq:", err);
+    console.warn("Failed to fetch Groq models:", err);
   }
-  return ["gemma2-9b-it", "llama-3.2-3b-preview", "llama-3.1-8b-instant"];
+  return ["llama-3.1-8b-instant", "gemma2-9b-it"];
 }
 
 export async function POST(req: Request) {
@@ -74,47 +73,57 @@ export async function POST(req: Request) {
     const queryLower = userQuery.toLowerCase();
     const dataset = loadDataset();
 
-    // Context Preparation
+    // 1. SMART KEYWORD EXTRACTION (Ignoring Common Stop Words)
+    const STOP_WORDS = new Set([
+      "show", "projects", "project", "list", "give", "tell", "details", "status", 
+      "about", "what", "which", "where", "have", "with", "from", "for", "state", 
+      "states", "major", "cost", "overrun", "overruns", "delay", "delays", "in", "the", "of", "and"
+    ]);
+
+    const rawWords = queryLower.replace(/[^\w\s]/gi, '').split(/\s+/);
+    const searchKeywords = rawWords.filter(w => w.length > 2 && !STOP_WORDS.has(w));
+
+    // 2. FILTER DATASET BY SPECIFIC SEARCH KEYWORDS
+    let matchedProjects: ProjectRow[] = [];
+
+    if (searchKeywords.length > 0) {
+      matchedProjects = dataset.filter(p => {
+        const stateLower = p.State.toLowerCase();
+        const nameLower = p.project_name.toLowerCase();
+        return searchKeywords.some(kw => stateLower.includes(kw) || nameLower.includes(kw));
+      });
+    }
+
+    // Top Overruns context
     const sortedOverruns = [...dataset].sort((a, b) => b.cost_overrun_cr - a.cost_overrun_cr);
-    const topOverrunsContext = sortedOverruns.slice(0, 15).map((p, i) => 
-      `${i+1}. ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | CostOverrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
-    ).join('\n');
+    
+    // Select top 8 matched or fallback overruns
+    const contextProjects = matchedProjects.length > 0 ? matchedProjects.slice(0, 10) : sortedOverruns.slice(0, 8);
 
-    const queryKeywords = queryLower.split(' ').filter((w: string) => w.length > 2);
-    const matchedProjects = dataset.filter(p => 
-      queryKeywords.some((kw: string) => 
-        p.project_name.toLowerCase().includes(kw) || 
-        p.State.toLowerCase().includes(kw)
-      )
-    ).slice(0, 15);
-
-    const matchedContext = matchedProjects.map((p, i) => 
-      `${i+1}. ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | CostOverrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
+    const matchedContext = contextProjects.map((p, i) => 
+      `${i+1}. ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | Overrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
     ).join('\n');
 
     const systemPrompt = `You are PAIMANA AI, an official infrastructure monitoring assistant for MoSPI (Ministry of Statistics and Programme Implementation, Govt of India).
 
 CORE MANDATE & RULES:
-1. You answer queries strictly related to Central Sector Infrastructure projects, cost overruns, delays, state allocations, and dataset statistics.
-2. If asked anything irrelevant (movies, coding, general trivia), REFUSE directly.
-3. Always analyze the provided dataset below and give COMPLETE, clear, structured responses with numbers and project names.
+1. Answer queries strictly related to Central Sector Infrastructure projects, cost overruns, delays, state allocations, and dataset statistics.
+2. Rely strictly on the dataset provided below to answer the user's specific query.
+3. Provide complete, structured, human-readable responses with concrete numbers and project names.
 
-TOP COST OVERRUN PROJECTS IN MOSPI DATABASE:
-${topOverrunsContext}
-
-MATCHED DATASET CONTEXT FOR QUERY:
-${matchedContext || "No direct string match found, rely on overall database summary above."}`;
+RELEVANT DATASET CONTEXT FOR USER QUERY:
+${matchedContext}
+`;
 
     const groqApiKey = process.env.GROQ_API_KEY;
 
-    // 1. DYNAMIC GROQ LLM CALL
+    // 3. GROQ API EXECUTION
     if (groqApiKey) {
-      const recentMessages = messages.slice(-6).map((m: any) => ({
+      const recentMessages = messages.slice(-4).map((m: any) => ({
         role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
         content: m.content
       }));
 
-      // Fetch live available models for your API key
       const modelsToTry = await getActiveGroqModels(groqApiKey);
 
       for (const model of modelsToTry) {
@@ -132,44 +141,30 @@ ${matchedContext || "No direct string match found, rely on overall database summ
                 ...recentMessages
               ],
               temperature: 0.2,
-              max_tokens: 1500
+              max_tokens: 1000
             })
           });
 
-          if (!groqRes.ok) {
-            continue;
-          }
+          if (!groqRes.ok) continue;
 
           const groqData = await groqRes.json();
           if (groqData?.choices?.[0]?.message?.content) {
             return NextResponse.json({ reply: groqData.choices[0].message.content });
           }
         } catch (e) {
-          console.warn(`Execution failed for model ${model}, moving to next...`);
+          console.warn(`Model ${model} failed, trying next...`);
         }
       }
     }
 
-    // 2. LOCAL ANALYTICAL ENGINE FALLBACK (If Groq API completely fails)
-    if (queryLower.includes("overrun") || queryLower.includes("exceed") || queryLower.includes("delay") || queryLower.includes("cost")) {
-      const top5 = sortedOverruns.slice(0, 5);
-      const listStr = top5.map((p, idx) => 
-        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Original Cost:** ₹${p.original_cost_cr.toLocaleString('en-IN')} Cr\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Cost Overrun:** 🚨 **₹${p.cost_overrun_cr.toLocaleString('en-IN')} Cr**\n   - **Progress:** ${p.physical_progress_pct}%`
-      ).join('\n\n');
-
-      return NextResponse.json({ 
-        reply: `Based on the MoSPI PAIMANA database, here are the top 5 central sector infrastructure projects with the **highest cost overruns**:\n\n${listStr}` 
-      });
-    }
-
+    // 4. LOCAL FALLBACK (If Groq API fails)
     if (matchedProjects.length > 0) {
-      const top3 = matchedProjects.slice(0, 3);
-      const projectList = top3.map((p, idx) => 
-        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Progress:** ${p.physical_progress_pct}%`
+      const projectList = matchedProjects.slice(0, 5).map((p, idx) => 
+        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Cost Overrun:** ₹${p.cost_overrun_cr.toLocaleString('en-IN')} Cr\n   - **Progress:** ${p.physical_progress_pct}%`
       ).join('\n\n');
 
       return NextResponse.json({ 
-        reply: `Found **${matchedProjects.length}** matching project(s) in the MoSPI database for "${userQuery}":\n\n${projectList}` 
+        reply: `Found **${matchedProjects.length}** project(s) matching your query:\n\n${projectList}` 
       });
     }
 
