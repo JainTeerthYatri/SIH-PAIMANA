@@ -9,19 +9,22 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is missing from environment variables.');
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is missing in environment variables.');
     }
 
-    const { data: rawProjects, error } = await supabase
+    // 1. Fetch all records from Supabase
+    const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
       .select('*');
 
-    if (error) throw error;
+    if (dbError) throw dbError;
     if (!rawProjects || rawProjects.length === 0) {
-      return NextResponse.json({ success: false, error: 'No projects found in database table paimana_projects' });
+      return NextResponse.json({ success: true, analysis: [] });
     }
 
+    // 2. Map exact database schema columns
     const projects = rawProjects.map((p: any) => ({
       projectName: p.project_name || 'Unnamed Project',
       state: p.State || 'National',
@@ -31,7 +34,8 @@ export async function GET(request: Request) {
       physicalProgress: p.physical_progress_pct || 0,
     }));
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    // 3. 100% Pure Gemini AI Execution
+    const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
       You are an elite Infrastructure Audit AI and Risk Analysis Expert for government projects.
@@ -41,7 +45,7 @@ export async function GET(request: Request) {
       ${JSON.stringify(projects, null, 2)}
 
       CRITICAL RULES:
-      1. Maintain a realistic, balanced portfolio distribution across HIGH, MEDIUM, and LOW risk levels. Do NOT mark every project as high risk; evaluate them contextually based on cost variances and progress.
+      1. Maintain a realistic, balanced portfolio distribution across HIGH, MEDIUM, and LOW risk levels.
       2. For EACH project, compute:
          - riskLevel ('HIGH', 'MEDIUM', or 'LOW')
          - riskScore (Integer 0 to 100)
@@ -83,7 +87,7 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('Pure AI Audit Error:', err);
+    console.error('100% Pure AI Audit Error:', err);
     return NextResponse.json(
       { success: false, error: err.message || 'AI processing failed' },
       { status: 500 }
