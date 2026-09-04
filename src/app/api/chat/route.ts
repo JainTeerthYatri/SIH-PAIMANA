@@ -12,7 +12,7 @@ interface ProjectRow {
   cost_overrun_cr: number;
 }
 
-// Load and parse CSV dataset
+// Load CSV Data dynamically
 function loadDataset(): ProjectRow[] {
   try {
     const filePath = path.join(process.cwd(), 'clean_paimana_data.csv');
@@ -56,13 +56,13 @@ export async function POST(req: Request) {
     const userQuery = latestMessageObj.content.trim();
     const dataset = loadDataset();
 
-    // Generate Top Overruns Summary Context for Groq LLM
+    // 1. Prepare Top 15 Cost Overrun Projects Context
     const sortedOverruns = [...dataset].sort((a, b) => b.cost_overrun_cr - a.cost_overrun_cr);
-    const topOverrunsContext = sortedOverruns.slice(0, 15).map(p => 
-      `- Project: ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | Overrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
+    const topOverrunsContext = sortedOverruns.slice(0, 15).map((p, i) => 
+      `${i+1}. ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | CostOverrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
     ).join('\n');
 
-    // Filter relevant projects matching user query keywords for targeted LLM context
+    // 2. Prepare Context for User Query Keywords
     const queryKeywords = userQuery.toLowerCase().split(' ').filter((w: string) => w.length > 2);
     const matchedProjects = dataset.filter(p => 
       queryKeywords.some((kw: string) => 
@@ -71,84 +71,72 @@ export async function POST(req: Request) {
       )
     ).slice(0, 15);
 
-    const matchedContext = matchedProjects.map(p => 
-      `- Project: ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | Overrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
+    const matchedContext = matchedProjects.map((p, i) => 
+      `${i+1}. ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | CostOverrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
     ).join('\n');
 
-    // System Prompt for Strict Guardrails & MoSPI Infrastructure Identity
+    // 3. System Guardrail Prompt for Groq Llama 3.3
     const systemPrompt = `You are PAIMANA AI, an official infrastructure monitoring assistant for MoSPI (Ministry of Statistics and Programme Implementation, Govt of India).
 
-STRICT GUARDRAIL RULES:
-1. You ONLY answer queries related to central sector infrastructure projects, state-wise progress, cost overruns, and dataset analytics.
-2. If a user asks about general knowledge, coding, weather, entertainment, or anything off-topic, politely refuse: "I am the PAIMANA Infrastructure Assistant. I can only answer queries related to central sector infrastructure projects and dataset analytics."
-3. Always provide analytical, concise, and structured answers using markdown lists or bold headers.
+CORE MANDATE & RULES:
+1. You answer queries strictly related to Central Sector Infrastructure projects, cost overruns, delays, state allocations, and dataset statistics.
+2. If asked anything irrelevant (movies, coding, general trivia, politics), REFUSE directly with: "I am the PAIMANA Infrastructure Assistant. I can only answer queries related to central sector infrastructure projects and dataset analytics."
+3. Always analyze the provided dataset below and give COMPLETE, clear, structured responses with numbers and project names. Never truncate your analysis midway.
 
-TOP COST OVERRUN PROJECTS IN DATABASE:
+TOP COST OVERRUN PROJECTS IN MOSPI DATABASE:
 ${topOverrunsContext}
 
-MATCHED PROJECTS FOR USER QUERY:
-${matchedContext.length > 0 ? matchedContext : "No direct keyword match found in sample index, use dataset intelligence."}`;
+MATCHED DATASET CONTEXT FOR QUERY:
+${matchedContext || "No direct string match found, rely on overall database summary above."}`;
 
-    // 1. GROQ API CALL
+    // 4. GROQ API Execution with Safety Truncation on Chat History
     const groqApiKey = process.env.GROQ_API_KEY;
 
-    if (groqApiKey) {
-      try {
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${groqApiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: systemPrompt },
-              ...messages.map((m: any) => ({
-                role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
-                content: m.content
-              }))
-            ],
-            temperature: 0.2,
-            max_tokens: 800
-          })
-        });
-
-        const groqData = await groqRes.json();
-        if (groqData?.choices?.[0]?.message?.content) {
-          return NextResponse.json({ reply: groqData.choices[0].message.content });
-        }
-      } catch (err) {
-        console.warn("Groq API call failed, falling back to local engine:", err);
-      }
+    if (!groqApiKey) {
+      console.error("GROQ_API_KEY is missing in environment variables!");
+      return NextResponse.json({ 
+        reply: "⚠️ Groq API Key is missing in server environment variables. Please check your Vercel / .env setup." 
+      });
     }
 
-    // 2. LOCAL ENGINE FALLBACK (If Groq API key is missing or fails)
-    const queryLower = userQuery.toLowerCase();
-    let reply = "";
+    // Pass ONLY the last 6 messages to avoid token limit errors
+    const recentMessages = messages.slice(-6).map((m: any) => ({
+      role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content
+    }));
 
-    if (queryLower.includes("overrun") || queryLower.includes("exceed") || queryLower.includes("delay")) {
-      const top5 = sortedOverruns.slice(0, 5);
-      const listStr = top5.map((p, idx) => 
-        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Original Cost:** ₹${p.original_cost_cr.toLocaleString('en-IN')} Cr\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Cost Overrun:** 🚨 **₹${p.cost_overrun_cr.toLocaleString('en-IN')} Cr**\n   - **Progress:** ${p.physical_progress_pct}%`
-      ).join('\n\n');
+    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${groqApiKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...recentMessages
+        ],
+        temperature: 0.2,
+        max_tokens: 1500 // Increased token limit so answers don't get truncated
+      })
+    });
 
-      reply = `Based on the MoSPI PAIMANA database, here are the top 5 central sector infrastructure projects with the highest cost overruns:\n\n${listStr}`;
-    } else if (matchedProjects.length > 0) {
-      const top3 = matchedProjects.slice(0, 3);
-      const projectList = top3.map((p, idx) => 
-        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Progress:** ${p.physical_progress_pct}%`
-      ).join('\n\n');
+    const groqData = await groqRes.json();
 
-      reply = `Found **${matchedProjects.length}** matching project(s) in the database:\n\n${projectList}`;
+    if (groqData?.choices?.[0]?.message?.content) {
+      return NextResponse.json({ reply: groqData.choices[0].message.content });
     } else {
-      reply = "I am the PAIMANA Infrastructure Assistant. I can only answer queries related to central sector infrastructure projects, state progress, and cost overruns.";
+      console.error("Groq API Error Response:", groqData);
+      return NextResponse.json({ 
+        reply: `API Response Error: ${groqData?.error?.message || "Failed to fetch AI response."}` 
+      });
     }
 
-    return NextResponse.json({ reply });
-
-  } catch (error) {
-    console.error("API Route Error:", error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Server API Route Error:", error);
+    return NextResponse.json({ 
+      reply: `Internal Server Error: ${error?.message || "Unknown error"}` 
+    }, { status: 500 });
   }
 }
