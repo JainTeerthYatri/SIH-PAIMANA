@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing' }, { status: 500 });
     }
 
-    const { count, error: countError } = await supabase
+    const { count } = await supabase
       .from('paimana_projects')
       .select('*', { count: 'exact', head: true });
 
@@ -51,22 +51,28 @@ export async function GET(request: Request) {
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `
-      You are an elite Infrastructure Audit AI and Risk Analysis Expert for government projects.
-      Analyze the following infrastructure projects dataset chunk and perform deep predictive anomaly detection.
-      
+      You are an elite Infrastructure Audit AI and Risk Analysis Expert. 
+      Analyze the following infrastructure projects chunk and return a JSON array containing the exact analysis for each project.
+
       Projects Data:
       ${JSON.stringify(projects, null, 2)}
 
-      CRITICAL RULES:
-      1. Maintain a realistic, varied portfolio distribution across HIGH, MEDIUM, and LOW risk levels.
-      2. For EACH project, compute:
-         - riskLevel ('HIGH', 'MEDIUM', or 'LOW')
-         - riskScore (Integer 0 to 100, uniquely calculated per project)
-         - estimatedDelayMonths (Unique string like "14 Months", "On Track", "6 Months Slipped")
-         - costOverrun (Calculated precisely as anticipatedCost - originalCost)
-         - anomalies (An array of 2 sharp, distinct audit finding statements)
+      Required JSON Schema per project in the array:
+      {
+        "projectName": "string",
+        "state": "string",
+        "originalCost": number,
+        "anticipatedCost": number,
+        "cumulativeExp": number,
+        "physicalProgress": number,
+        "costOverrun": number,
+        "estimatedDelayMonths": "string (e.g. 14 Months, On Track, 6 Months Slipped)",
+        "riskLevel": "HIGH" | "MEDIUM" | "LOW",
+        "riskScore": number (0 to 100),
+        "anomalies": ["string", "string"]
+      }
 
-      You MUST respond with a valid JSON array ONLY. Start strictly with [ and end with ]. Do not include any conversational text or markdown code blocks.
+      CRITICAL: Return ONLY a valid JSON array. Do not wrap it in markdown code blocks like \`\`\`json. Start with [ and end with ].
     `;
 
     const response = await ai.models.generateContent({
@@ -75,12 +81,19 @@ export async function GET(request: Request) {
     });
 
     const aiText = response.text || '';
-    const jsonMatch = aiText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('AI response did not return a valid JSON array format.');
+    
+    // Clean potential markdown wrappers if AI adds them
+    const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const firstBracket = cleanedText.indexOf('[');
+    const lastBracket = cleanedText.lastIndexOf(']');
+
+    if (firstBracket === -1 || lastBracket === -1) {
+      throw new Error('AI response did not contain a valid JSON array block.');
     }
 
-    const aiAnalysisResult = JSON.parse(jsonMatch[0]);
+    const jsonString = cleanedText.substring(firstBracket, lastBracket + 1);
+    const aiAnalysisResult = JSON.parse(jsonString);
+
     const nextOffset = offset + limit;
     const hasMore = nextOffset < totalCount;
 
