@@ -2,19 +2,21 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
 
+// Vercel Timeout Fix: Allow serverless function to run for up to 60 seconds (for slow AI responses)
+export const maxDuration = 60;
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is missing in environment variables.');
     }
 
-    // 1. Fetch all records from Supabase
     const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
       .select('*');
@@ -24,7 +26,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, analysis: [] });
     }
 
-    // 2. Map exact database schema columns
     const projects = rawProjects.map((p: any) => ({
       projectName: p.project_name || 'Unnamed Project',
       state: p.State || 'National',
@@ -34,7 +35,6 @@ export async function GET(request: Request) {
       physicalProgress: p.physical_progress_pct || 0,
     }));
 
-    // 3. 100% Pure Gemini AI Execution
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -53,23 +53,7 @@ export async function GET(request: Request) {
          - costOverrun (Calculated precisely as anticipatedCost - originalCost)
          - anomalies (An array of 2 precise AI audit finding statements)
 
-      You MUST respond with a valid JSON array ONLY. Do NOT wrap the JSON in markdown code blocks like \`\`\`json. Return raw JSON string starting with [ and ending with ].
-      
-      [
-        {
-          "projectName": "string",
-          "state": "string",
-          "originalCost": number,
-          "anticipatedCost": number,
-          "cumulativeExp": number,
-          "physicalProgress": number,
-          "costOverrun": number,
-          "estimatedDelayMonths": "string",
-          "riskLevel": "HIGH" | "MEDIUM" | "LOW",
-          "riskScore": number,
-          "anomalies": ["string", "string"]
-        }
-      ]
+      You MUST respond with a valid JSON array ONLY. Start strictly with [ and end with ]. Do not include any conversational text.
     `;
 
     const response = await ai.models.generateContent({
@@ -77,9 +61,15 @@ export async function GET(request: Request) {
       contents: prompt,
     });
 
-    let aiText = response.text || '[]';
-    aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const aiAnalysisResult = JSON.parse(aiText);
+    const aiText = response.text || '';
+    
+    // Smart JSON Extraction: Extract ONLY the content between [ and ]
+    const jsonMatch = aiText.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error('AI response did not contain a valid JSON array format.');
+    }
+
+    const aiAnalysisResult = JSON.parse(jsonMatch[0]);
 
     return NextResponse.json({
       success: true,
@@ -87,7 +77,8 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('100% Pure AI Audit Error:', err);
+    // Ye console log Vercel dashboard mein asli error batayega
+    console.error('100% Pure AI Audit Error:', err.message || err);
     return NextResponse.json(
       { success: false, error: err.message || 'AI processing failed' },
       { status: 500 }
