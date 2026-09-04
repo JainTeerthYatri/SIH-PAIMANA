@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     ]);
 
     const rawWords = queryLower.replace(/[^\w\s]/gi, '').split(/\s+/);
-    const searchKeywords = rawWords.filter(w => w.length > 2 && !STOP_WORDS.has(w));
+    const searchKeywords = rawWords.filter((w: string) => w.length > 2 && !STOP_WORDS.has(w));
 
     // 2. FILTER DATASET BY SPECIFIC SEARCH KEYWORDS
     let matchedProjects: ProjectRow[] = [];
@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       matchedProjects = dataset.filter(p => {
         const stateLower = p.State.toLowerCase();
         const nameLower = p.project_name.toLowerCase();
-        return searchKeywords.some(kw => stateLower.includes(kw) || nameLower.includes(kw));
+        return searchKeywords.some((kw: string) => stateLower.includes(kw) || nameLower.includes(kw));
       });
     }
 
