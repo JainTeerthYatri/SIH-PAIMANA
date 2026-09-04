@@ -8,7 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 );
 
-// Collect all available Gemini keys for multi-key distribution & rotation
 const getGeminiKeys = () => {
   return [
     process.env.GEMINI_API_KEY,
@@ -19,21 +18,6 @@ const getGeminiKeys = () => {
     process.env.GEMINI_API_KEY_5,
   ].filter(Boolean) as string[];
 };
-
-async function fetchWithTimeout(promise: Promise<Response>, timeoutMs: number = 1000): Promise<Response> {
-  let timeoutId: NodeJS.Timeout;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error('AI Provider Timeout exceeded')), timeoutMs);
-  });
-  try {
-    const result = await Promise.race([promise, timeoutPromise]);
-    clearTimeout(timeoutId!);
-    return result as Response;
-  } catch (err) {
-    clearTimeout(timeoutId!);
-    throw err;
-  }
-}
 
 export async function GET(request: Request) {
   try {
@@ -99,84 +83,91 @@ export async function GET(request: Request) {
     `;
 
     let aiAnalysisResult = null;
-    let usedProvider = 'gemini';
+    let usedProvider = 'gemini-cluster';
     const geminiKeys = getGeminiKeys();
 
-    // 1. Try Gemini Keys with load balancing rotation
-    if (geminiKeys.length > 0) {
-      const keyIndex = Math.floor(offset / limit) % geminiKeys.length;
-      const selectedKey = geminiKeys[keyIndex];
+    // Continuous Self-Healing Retry Loop (Cycles through keys and providers until valid AI result is returned)
+    let attemptCycle = 0;
+    const maxCycles = 4; // Max retry cycles before giving up
 
-      try {
-        const geminiPromise = fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${selectedKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }]
-            }),
+    while (!aiAnalysisResult && attemptCycle < maxCycles) {
+      attemptCycle++;
+
+      // 1. Try looping through all Gemini Keys sequentially in this cycle
+      for (let i = 0; i < geminiKeys.length; i++) {
+        const currentKey = geminiKeys[i];
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+            }
+          );
+
+          if (geminiRes.ok) {
+            const geminiJson = await geminiRes.json();
+            const aiText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const firstBracket = cleanedText.indexOf('[');
+            const lastBracket = cleanedText.lastIndexOf(']');
+
+            if (firstBracket !== -1 && lastBracket !== -1) {
+              aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
+              usedProvider = `gemini-key-${i + 1}`;
+              break; // Success! Exit inner loop
+            }
           }
-        );
-
-        const geminiRes = await fetchWithTimeout(geminiPromise, 1200);
-        const geminiJson = await geminiRes.json();
-        
-        const aiText = geminiJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const firstBracket = cleanedText.indexOf('[');
-        const lastBracket = cleanedText.lastIndexOf(']');
-
-        if (firstBracket !== -1 && lastBracket !== -1) {
-          aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
+        } catch (err) {
+          console.warn(`Cycle ${attemptCycle}: Gemini Key ${i + 1} failed, rotating to next key...`);
         }
-      } catch (geminiError) {
-        console.warn(`Gemini key index ${keyIndex} failed, switching to Hugging Face AI...`, geminiError);
-        usedProvider = 'huggingface';
       }
-    } else {
-      usedProvider = 'huggingface';
+
+      // 2. If Gemini keys failed in this cycle, try Hugging Face AI
+      if (!aiAnalysisResult && process.env.HUGGINGFACE_API_KEY) {
+        try {
+          const hfRes = await fetch(
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+            {
+              headers: {
+                Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              method: 'POST',
+              body: JSON.stringify({
+                inputs: `[INST] ${prompt} [/INST]`,
+                parameters: { max_new_tokens: 2000, temperature: 0.2, return_full_text: false }
+              }),
+            }
+          );
+
+          if (hfRes.ok) {
+            const hfResult = await hfRes.json();
+            const aiText = Array.isArray(hfResult) ? hfResult[0]?.generated_text : hfResult?.generated_text || '';
+            const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const firstBracket = cleanedText.indexOf('[');
+            const lastBracket = cleanedText.lastIndexOf(']');
+
+            if (firstBracket !== -1 && lastBracket !== -1) {
+              aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
+              usedProvider = 'huggingface-fallback';
+              break; // Success! Exit loop
+            }
+          }
+        } catch (hfErr) {
+          console.warn(`Cycle ${attemptCycle}: Hugging Face failed, re-running cycle...`);
+        }
+      }
+
+      // Brief pause before starting the next continuous cycle
+      if (!aiAnalysisResult) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+      }
     }
 
-    // 2. Fallback to Hugging Face AI Model if Gemini failed
     if (!aiAnalysisResult) {
-      const hfKey = process.env.HUGGINGFACE_API_KEY;
-      if (!hfKey) {
-        throw new Error('All Gemini keys failed and HUGGINGFACE_API_KEY is missing.');
-      }
-
-      const hfPrompt = `[INST] ${prompt} [/INST]`;
-      const hfResponse = await fetch(
-        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-        {
-          headers: {
-            Authorization: `Bearer ${hfKey}`,
-            "Content-Type": "application/json",
-          },
-          method: 'POST',
-          body: JSON.stringify({
-            inputs: hfPrompt,
-            parameters: { max_new_tokens: 2000, temperature: 0.2, return_full_text: false }
-          }),
-        }
-      );
-
-      const hfResult = await hfResponse.json();
-
-      if (hfResult.error) {
-        throw new Error(`Hugging Face AI Error: ${typeof hfResult.error === 'string' ? hfResult.error : JSON.stringify(hfResult.error)}`);
-      }
-
-      const aiText = Array.isArray(hfResult) ? hfResult[0]?.generated_text : hfResult?.generated_text || '';
-      const cleanedText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const firstBracket = cleanedText.indexOf('[');
-      const lastBracket = cleanedText.lastIndexOf(']');
-
-      if (firstBracket === -1 || lastBracket === -1) {
-        throw new Error('AI model failed to return valid JSON structure');
-      }
-
-      aiAnalysisResult = JSON.parse(cleanedText.substring(firstBracket, lastBracket + 1));
+      throw new Error('All AI providers and keys exhausted after continuous retry cycles.');
     }
 
     const nextOffset = offset + limit;
@@ -192,7 +183,7 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('AI Pipeline Critical Error:', err);
+    console.error('Continuous AI Loop Error:', err);
     return NextResponse.json(
       { success: false, error: err.message || 'Internal Server Error' },
       { status: 500 }
