@@ -27,37 +27,22 @@ export default function AIAnalyticsPage() {
   const itemsPerPage = 6
 
   useEffect(() => {
-    async function fetchAllChunksInBatch() {
+    async function fetchAllChunks() {
       try {
         let offset = 0;
         const limit = 15;
         let hasMore = true;
-        let accumulatedProjects: RiskProject[] = [];
+        let accumulated: RiskProject[] = [];
 
-        // First fetch to get total count
-        const initialRes = await fetch(`/api/ai/analyze-risks?offset=0&limit=${limit}`);
-        if (!initialRes.ok) throw new Error(`Server returned status ${initialRes.status}`);
-        const initialData = await initialRes.json();
-
-        if (initialData.success && Array.isArray(initialData.analysis)) {
-          accumulatedProjects = [...initialData.analysis];
-          setProjects([...accumulatedProjects].sort((a, b) => b.riskScore - a.riskScore));
-          setLoadingProgress({ loaded: accumulatedProjects.length, total: initialData.total });
-          
-          offset = initialData.nextOffset;
-          hasMore = initialData.hasMore;
-        }
-
-        // Background loop to fetch rest of the 819 projects seamlessly
         while (hasMore) {
           const res = await fetch(`/api/ai/analyze-risks?offset=${offset}&limit=${limit}`);
-          if (!res.ok) break;
+          if (!res.ok) throw new Error(`Server returned status ${res.status}`);
           const data = await res.json();
 
           if (data.success && Array.isArray(data.analysis)) {
-            accumulatedProjects = [...accumulatedProjects, ...data.analysis];
-            setProjects([...accumulatedProjects].sort((a, b) => b.riskScore - a.riskScore));
-            setLoadingProgress({ loaded: accumulatedProjects.length, total: data.total });
+            accumulated = [...accumulated, ...data.analysis];
+            setProjects([...accumulated].sort((a, b) => b.riskScore - a.riskScore));
+            setLoadingProgress({ loaded: accumulated.length, total: data.total || 819 });
             
             offset = data.nextOffset;
             hasMore = data.hasMore;
@@ -66,13 +51,13 @@ export default function AIAnalyticsPage() {
           }
         }
       } catch (err) {
-        console.error('Failed to load full AI analytics batch', err);
+        console.error('Failed to load AI analytics chunks', err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchAllChunksInBatch();
+    fetchAllChunks();
   }, [])
 
   useEffect(() => {
@@ -131,7 +116,7 @@ export default function AIAnalyticsPage() {
       {loading && projects.length === 0 ? (
         <div className="p-20 text-center text-slate-500 font-semibold flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          Initializing Neural Audit Engine for all records...
+          Initializing Neural Audit Engine via Server API...
         </div>
       ) : (
         <>

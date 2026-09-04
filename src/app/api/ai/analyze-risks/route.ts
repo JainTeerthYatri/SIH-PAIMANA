@@ -17,17 +17,15 @@ export async function GET(request: Request) {
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is missing in environment variables.');
+      return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing on server' }, { status: 500 });
     }
 
-    // 1. Fetch total count from Supabase
     const { count, error: countError } = await supabase
       .from('paimana_projects')
       .select('*', { count: 'exact', head: true });
 
     if (countError) throw countError;
 
-    // 2. Fetch chunk from Supabase
     const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
       .select('*')
@@ -47,7 +45,6 @@ export async function GET(request: Request) {
       physicalProgress: p.physical_progress_pct || 0,
     }));
 
-    // 3. Pure LLM Generation (No fallback math)
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -93,7 +90,7 @@ export async function GET(request: Request) {
     });
 
   } catch (err: any) {
-    console.error('Pure AI Audit Error:', err.message || err);
+    console.error('API Route Error:', err.message || err);
     return NextResponse.json(
       { success: false, error: err.message || 'AI processing failed' },
       { status: 500 }
