@@ -9,23 +9,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const limit = parseInt(searchParams.get('limit') || '15', 10);
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is missing in environment variables.');
     }
 
+    // Fetch total count first
+    const { count, error: countError } = await supabase
+      .from('paimana_projects')
+      .select('*', { count: 'exact', head: true });
+
+    if (countError) throw countError;
+
+    // Fetch specific chunk from Supabase
     const { data: rawProjects, error: dbError } = await supabase
       .from('paimana_projects')
-      .select('*');
+      .select('*')
+      .range(offset, offset + limit - 1);
 
     if (dbError) throw dbError;
     if (!rawProjects || rawProjects.length === 0) {
-      return NextResponse.json({ success: true, analysis: [] });
+      return NextResponse.json({ success: true, analysis: [], total: count || 0, hasMore: false });
     }
 
-    const projects = rawProjects.slice(0, 15).map((p: any) => ({
+    const projects = rawProjects.map((p: any) => ({
       projectName: p.project_name || 'Unnamed Project',
       state: p.State || 'National',
       originalCost: p.original_cost_cr || 0,
@@ -38,7 +51,7 @@ export async function GET() {
 
     const prompt = `
       You are an elite Infrastructure Audit AI and Risk Analysis Expert for government projects.
-      Analyze the following infrastructure projects dataset and perform deep predictive anomaly detection.
+      Analyze the following infrastructure projects dataset chunk and perform deep predictive anomaly detection.
       
       Projects Data:
       ${JSON.stringify(projects, null, 2)}
@@ -56,7 +69,7 @@ export async function GET() {
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
     });
 
@@ -67,10 +80,15 @@ export async function GET() {
     }
 
     const aiAnalysisResult = JSON.parse(jsonMatch[0]);
+    const nextOffset = offset + limit;
+    const hasMore = nextOffset < (count || 0);
 
     return NextResponse.json({
       success: true,
       analysis: aiAnalysisResult,
+      total: count || 0,
+      nextOffset,
+      hasMore,
     });
 
   } catch (err: any) {
