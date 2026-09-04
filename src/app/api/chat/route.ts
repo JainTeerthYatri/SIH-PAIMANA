@@ -2,36 +2,49 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-// Load and parse CSV dataset dynamically
-function searchDataset(query: string) {
+interface ProjectRow {
+  project_name: string;
+  State: string;
+  original_cost_cr: number;
+  anticipated_cost_cr: number;
+  cumulative_exp_cr: number;
+  physical_progress_pct: number;
+  cost_overrun_cr: number;
+}
+
+// Load and parse CSV dataset
+function loadDataset(): ProjectRow[] {
   try {
     const filePath = path.join(process.cwd(), 'clean_paimana_data.csv');
-    if (!fs.existsSync(filePath)) return "Dataset file not found.";
+    if (!fs.existsSync(filePath)) return [];
     
     const fileContent = fs.readFileSync(filePath, 'utf8');
     const lines = fileContent.split('\n');
     const headers = lines[0].split(',').map(h => h.trim());
-    
-    const results = [];
+
+    const rows: ProjectRow[] = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
       const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
       const row: Record<string, string> = {};
+      
       headers.forEach((header, index) => {
         row[header] = values[index] ? values[index].replace(/^"|"$/g, '').trim() : '';
       });
-      
-      // Match query against project_name or State
-      const pName = (row['project_name'] || '').toLowerCase();
-      const pState = (row['State'] || '').toLowerCase();
-      
-      if (pName.includes(query) || pState.includes(query)) {
-        results.push(row);
-      }
+
+      rows.push({
+        project_name: row['project_name'] || 'Unknown Project',
+        State: row['State'] || 'N/A',
+        original_cost_cr: parseFloat(row['original_cost_cr']) || 0,
+        anticipated_cost_cr: parseFloat(row['anticipated_cost_cr']) || 0,
+        cumulative_exp_cr: parseFloat(row['cumulative_exp_cr']) || 0,
+        physical_progress_pct: parseFloat(row['physical_progress_pct']) || 0,
+        cost_overrun_cr: parseFloat(row['cost_overrun_cr']) || 0,
+      });
     }
-    return results;
+    return rows;
   } catch (e) {
-    console.error("Search Error:", e);
+    console.error("Data Load Error:", e);
     return [];
   }
 }
@@ -40,38 +53,102 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json();
     const latestMessageObj = messages[messages.length - 1];
-    const latestMessage = latestMessageObj.content.toLowerCase().trim();
+    const userQuery = latestMessageObj.content.trim();
+    const dataset = loadDataset();
 
-    let reply = "";
+    // Generate Top Overruns Summary Context for Groq LLM
+    const sortedOverruns = [...dataset].sort((a, b) => b.cost_overrun_cr - a.cost_overrun_cr);
+    const topOverrunsContext = sortedOverruns.slice(0, 15).map(p => 
+      `- Project: ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | Overrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
+    ).join('\n');
 
-    if (latestMessage.includes("hello") || latestMessage.includes("hi") || latestMessage.includes("namaste")) {
-      reply = "Namaste! I am your PAIMANA AI Assistant. Ask me about any central sector infrastructure project, cost overrun, or state-wise progress from our database.";
-    } else {
-      const matches = searchDataset(latestMessage);
-      
-      if (Array.isArray(matches) && matches.length > 0) {
-        // Return top 2 matching projects dynamically
-        const topMatches = matches.slice(0, 2).map((p: any, idx: number) => 
-          `\n\n${idx + 1}. **${p.project_name}**\n- **State:** ${p.State}\n- **Original Cost:** ₹${p.original_cost_cr} Cr\n- **Anticipated Cost:** ₹${p.anticipated_cost_cr} Cr\n- **Physical Progress:** ${p.physical_progress_pct}%`
-        ).join('');
-        
-        reply = `Found ${matches.length} matching project(s) in the MoSPI database:${topMatches}`;
-      } else if (
-        latestMessage.includes("project") || 
-        latestMessage.includes("cost") || 
-        latestMessage.includes("state") || 
-        latestMessage.includes("progress") ||
-        latestMessage.includes("overrun")
-      ) {
-        reply = "I am connected to the PAIMANA database tracking 800+ central sector projects. Please provide a specific keyword, state name (e.g., Assam, Delhi), or project title to get exact details.";
-      } else {
-        // Strict Guardrail
-        reply = "I am the PAIMANA Infrastructure Monitoring Assistant. I can only answer queries related to central sector infrastructure projects, state progress, and dataset analytics.";
+    // Filter relevant projects matching user query keywords for targeted LLM context
+    const queryKeywords = userQuery.toLowerCase().split(' ').filter((w: string) => w.length > 2);
+    const matchedProjects = dataset.filter(p => 
+      queryKeywords.some((kw: string) => 
+        p.project_name.toLowerCase().includes(kw) || 
+        p.State.toLowerCase().includes(kw)
+      )
+    ).slice(0, 15);
+
+    const matchedContext = matchedProjects.map(p => 
+      `- Project: ${p.project_name} | State: ${p.State} | OrigCost: ₹${p.original_cost_cr}Cr | AntCost: ₹${p.anticipated_cost_cr}Cr | Overrun: ₹${p.cost_overrun_cr}Cr | Progress: ${p.physical_progress_pct}%`
+    ).join('\n');
+
+    // System Prompt for Strict Guardrails & MoSPI Infrastructure Identity
+    const systemPrompt = `You are PAIMANA AI, an official infrastructure monitoring assistant for MoSPI (Ministry of Statistics and Programme Implementation, Govt of India).
+
+STRICT GUARDRAIL RULES:
+1. You ONLY answer queries related to central sector infrastructure projects, state-wise progress, cost overruns, and dataset analytics.
+2. If a user asks about general knowledge, coding, weather, entertainment, or anything off-topic, politely refuse: "I am the PAIMANA Infrastructure Assistant. I can only answer queries related to central sector infrastructure projects and dataset analytics."
+3. Always provide analytical, concise, and structured answers using markdown lists or bold headers.
+
+TOP COST OVERRUN PROJECTS IN DATABASE:
+${topOverrunsContext}
+
+MATCHED PROJECTS FOR USER QUERY:
+${matchedContext.length > 0 ? matchedContext : "No direct keyword match found in sample index, use dataset intelligence."}`;
+
+    // 1. GROQ API CALL
+    const groqApiKey = process.env.GROQ_API_KEY;
+
+    if (groqApiKey) {
+      try {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${groqApiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: systemPrompt },
+              ...messages.map((m: any) => ({
+                role: m.role === 'ai' || m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.content
+              }))
+            ],
+            temperature: 0.2,
+            max_tokens: 800
+          })
+        });
+
+        const groqData = await groqRes.json();
+        if (groqData?.choices?.[0]?.message?.content) {
+          return NextResponse.json({ reply: groqData.choices[0].message.content });
+        }
+      } catch (err) {
+        console.warn("Groq API call failed, falling back to local engine:", err);
       }
     }
 
+    // 2. LOCAL ENGINE FALLBACK (If Groq API key is missing or fails)
+    const queryLower = userQuery.toLowerCase();
+    let reply = "";
+
+    if (queryLower.includes("overrun") || queryLower.includes("exceed") || queryLower.includes("delay")) {
+      const top5 = sortedOverruns.slice(0, 5);
+      const listStr = top5.map((p, idx) => 
+        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Original Cost:** ₹${p.original_cost_cr.toLocaleString('en-IN')} Cr\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Cost Overrun:** 🚨 **₹${p.cost_overrun_cr.toLocaleString('en-IN')} Cr**\n   - **Progress:** ${p.physical_progress_pct}%`
+      ).join('\n\n');
+
+      reply = `Based on the MoSPI PAIMANA database, here are the top 5 central sector infrastructure projects with the highest cost overruns:\n\n${listStr}`;
+    } else if (matchedProjects.length > 0) {
+      const top3 = matchedProjects.slice(0, 3);
+      const projectList = top3.map((p, idx) => 
+        `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Anticipated Cost:** ₹${p.anticipated_cost_cr.toLocaleString('en-IN')} Cr\n   - **Progress:** ${p.physical_progress_pct}%`
+      ).join('\n\n');
+
+      reply = `Found **${matchedProjects.length}** matching project(s) in the database:\n\n${projectList}`;
+    } else {
+      reply = "I am the PAIMANA Infrastructure Assistant. I can only answer queries related to central sector infrastructure projects, state progress, and cost overruns.";
+    }
+
     return NextResponse.json({ reply });
+
   } catch (error) {
+    console.error("API Route Error:", error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
