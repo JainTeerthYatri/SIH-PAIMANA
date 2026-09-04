@@ -30,7 +30,7 @@ export default function AIAnalyticsPage() {
     async function fetchAllChunks() {
       try {
         let offset = 0;
-        const limit = 15;
+        const limit = 10;
         let hasMore = true;
         let accumulated: RiskProject[] = [];
 
@@ -114,23 +114,36 @@ export default function AIAnalyticsPage() {
       </div>
 
       {loading && projects.length === 0 ? (
-        <div className="p-20 text-center text-slate-500 font-semibold flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 rounded-2xl shadow-xs">
-          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-          Initializing Neural Audit Engine via Server API...
+        <div className="p-20 text-center text-slate-700 font-semibold flex flex-col items-center justify-center gap-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute w-16 h-16 bg-blue-500/20 rounded-full animate-ping"></div>
+            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <Sparkles className="w-7 h-7 text-white animate-pulse" />
+            </div>
+          </div>
+          <div>
+            <p className="text-base font-bold text-[#002244]">Initializing Neural Audit Engine...</p>
+            <p className="text-xs text-slate-400 mt-1">Connecting to Gemini AI and executing batch infrastructure parsing</p>
+          </div>
         </div>
       ) : (
         <>
           {loading && (
-            <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between shadow-xs">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-xs font-bold text-blue-900">
-                  Background AI Analysis in Progress: Analyzed {loadingProgress.loaded} of {loadingProgress.total} infrastructure projects...
-                </span>
+            <div className="mb-6 bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center backdrop-blur-md">
+                  <Sparkles className="w-5 h-5 text-cyan-400 animate-spin" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-cyan-300 uppercase tracking-wide">Live AI Model Execution</p>
+                  <p className="text-sm font-medium text-slate-100">
+                    Analyzed <span className="font-bold text-white">{loadingProgress.loaded}</span> of <span className="font-bold text-white">{loadingProgress.total || 819}</span> infrastructure projects in optimized batches...
+                  </p>
+                </div>
               </div>
-              <div className="w-32 bg-blue-200 rounded-full h-2 overflow-hidden">
+              <div className="w-full sm:w-48 bg-white/20 rounded-full h-2.5 overflow-hidden p-0.5">
                 <div 
-                  className="bg-blue-600 h-full transition-all duration-300" 
+                  className="bg-gradient-to-r from-cyan-400 to-blue-400 h-full rounded-full transition-all duration-300 shadow-sm" 
                   style={{ width: `${Math.round((loadingProgress.loaded / (loadingProgress.total || 819)) * 100)}%` }}
                 />
               </div>
