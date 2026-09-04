@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface RiskProject {
   projectName: string
@@ -29,6 +29,7 @@ export default function AIAnalyticsPage() {
     async function fetchAIAnalysis() {
       try {
         const res = await fetch('/api/ai/analyze-risks')
+        if (!res.ok) throw new Error(`Server returned status ${res.status}`)
         const data = await res.json()
         if (data.success && Array.isArray(data.analysis)) {
           const sorted = data.analysis.sort((a: RiskProject, b: RiskProject) => b.riskScore - a.riskScore)

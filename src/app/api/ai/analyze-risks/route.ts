@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
 
-// Vercel Timeout Fix: Allow serverless function to run for up to 60 seconds (for slow AI responses)
 export const maxDuration = 60;
 
 const supabase = createClient(
@@ -26,7 +25,7 @@ export async function GET() {
       return NextResponse.json({ success: true, analysis: [] });
     }
 
-    const projects = rawProjects.map((p: any) => ({
+    const projects = rawProjects.slice(0, 15).map((p: any) => ({
       projectName: p.project_name || 'Unnamed Project',
       state: p.State || 'National',
       originalCost: p.original_cost_cr || 0,
@@ -53,17 +52,15 @@ export async function GET() {
          - costOverrun (Calculated precisely as anticipatedCost - originalCost)
          - anomalies (An array of 2 precise AI audit finding statements)
 
-      You MUST respond with a valid JSON array ONLY. Start strictly with [ and end with ]. Do not include any conversational text.
+      You MUST respond with a valid JSON array ONLY. Start strictly with [ and end with ]. Do not include any conversational text or markdown code blocks.
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash', // Updated active model identifier
+      model: 'gemini-2.5-flash',
       contents: prompt,
     });
 
     const aiText = response.text || '';
-    
-    // Smart JSON Extraction: Extract ONLY the content between [ and ]
     const jsonMatch = aiText.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
       throw new Error('AI response did not contain a valid JSON array format.');
@@ -77,7 +74,6 @@ export async function GET() {
     });
 
   } catch (err: any) {
-    // Ye console log Vercel dashboard mein asli error batayega
     console.error('100% Pure AI Audit Error:', err.message || err);
     return NextResponse.json(
       { success: false, error: err.message || 'AI processing failed' },
