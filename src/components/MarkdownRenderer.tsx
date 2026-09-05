@@ -10,86 +10,98 @@ interface MarkdownRendererProps {
 
 export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
-    <div className="markdown-content text-slate-200 leading-relaxed text-sm space-y-3">
+    <div className="markdown-content text-slate-900 leading-relaxed text-sm space-y-2 font-normal">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // 1. RESPONSIVE TABLE CONTAINER (Layout bilkul nahi tootega!)
+          // 1. RESPONSIVE TABLE WITH HIGH-CONTRAST BLACK TEXT
           table: ({ children }) => (
-            <div className="my-4 w-full overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-900/60 shadow-lg backdrop-blur-sm">
-              <table className="w-full min-w-[600px] border-collapse text-left text-xs">
+            <div className="my-3 w-full overflow-x-auto rounded-lg border border-slate-300 bg-white shadow-xs">
+              <table className="w-full min-w-[500px] border-collapse text-left text-xs">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-slate-800/90 text-indigo-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+            <thead className="bg-slate-100 text-slate-900 font-bold border-b border-slate-300">
               {children}
             </thead>
           ),
           tbody: ({ children }) => (
-            <tbody className="divide-y divide-slate-800/60 bg-slate-900/30">
+            <tbody className="divide-y divide-slate-200 bg-white">
               {children}
             </tbody>
           ),
           tr: ({ children }) => (
-            <tr className="hover:bg-indigo-500/10 transition-colors duration-150">
+            <tr className="hover:bg-slate-100/80 transition-colors">
               {children}
             </tr>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-3 font-semibold text-slate-200 text-xs">
+            <th className="px-3.5 py-2.5 font-bold text-slate-900 text-xs">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="px-4 py-3 text-slate-300 text-xs border-t border-slate-800/50">
+            <td className="px-3.5 py-2 text-slate-900 text-xs border-t border-slate-200 font-medium">
               {children}
             </td>
           ),
-          // 2. STYLED HEADINGS & BOLD TEXT
+
+          // 2. HEADINGS IN SOLID DARK / BLACK TEXT
           h1: ({ children }) => (
-            <h1 className="text-xl font-bold text-white mt-4 mb-2 border-b border-slate-700 pb-1">
+            <h1 className="text-xl font-extrabold text-slate-900 mt-3 mb-1.5 border-b border-slate-300 pb-1">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-lg font-semibold text-indigo-400 mt-3 mb-2">
+            <h2 className="text-lg font-bold text-slate-900 mt-2.5 mb-1">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-base font-semibold text-slate-100 mt-2 mb-1">
+            <h3 className="text-base font-bold text-slate-900 mt-2 mb-1">
               {children}
             </h3>
           ),
+
+          // 3. BOLD & PARAGRAPHS
           strong: ({ children }) => (
-            <strong className="font-semibold text-indigo-300">
+            <strong className="font-extrabold text-slate-900">
               {children}
             </strong>
           ),
-          // 3. CLEAN LISTS (BULLETS & NUMBERS)
+          p: ({ children }) => (
+            <p className="mb-1.5 leading-relaxed text-slate-900 font-normal">
+              {children}
+            </p>
+          ),
+
+          // 4. LISTS IN BLACK
           ul: ({ children }) => (
-            <ul className="list-disc list-inside space-y-1.5 my-2 pl-2 text-slate-300">
+            <ul className="list-disc list-inside space-y-1 my-1 pl-1 text-slate-900">
               {children}
             </ul>
           ),
           ol: ({ children }) => (
-            <ol className="list-decimal list-inside space-y-1.5 my-2 pl-2 text-slate-300">
+            <ol className="list-decimal list-inside space-y-1 my-1 pl-1 text-slate-900">
               {children}
             </ol>
           ),
-          li: ({ children }) => <li className="text-xs leading-normal">{children}</li>,
-          // 4. INLINE CODE & CODE BLOCKS
+          li: ({ children }) => (
+            <li className="text-slate-900 text-xs md:text-sm font-normal">
+              {children}
+            </li>
+          ),
+
+          // 5. CODE & QUOTES
           code: ({ children }) => (
-            <code className="bg-slate-800 text-amber-300 px-1.5 py-0.5 rounded text-xs font-mono border border-slate-700">
+            <code className="bg-slate-100 text-slate-900 border border-slate-300 px-1.5 py-0.5 rounded text-xs font-mono font-semibold">
               {children}
             </code>
           ),
-          // 5. PARAGRAPHS & BLOCKQUOTES
-          p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-indigo-500 pl-3 italic my-2 text-slate-400 bg-indigo-950/20 py-1 rounded-r">
+            <blockquote className="border-l-4 border-blue-600 pl-3 italic my-2 text-slate-900 bg-blue-50/60 py-1.5 rounded-r font-medium">
               {children}
             </blockquote>
           ),
