@@ -35,20 +35,18 @@ Return ONLY a valid JSON array without markdown codeblocks:
 
   // 1. Primary Attempt: Gemini Flash API
   try {
-    console.log('🤖 Attempting primary processing with Gemini Flash...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const res = await model.generateContent(prompt);
     const text = res.response.text().replace(/```json|```/g, '').trim();
     aiResults = JSON.parse(text);
     providerUsed = 'gemini-flash';
   } catch (geminiErr: any) {
-    console.warn('🔴 Gemini API Failed! Status: Redirecting to Groq AI...', geminiErr.message || geminiErr);
+    console.warn('Gemini API Error, redirecting to Groq AI...', geminiErr.message || geminiErr);
     
     // 2. Secondary Attempt: Groq AI
     try {
       const groqKey = process.env.GROQ_ANALYTICS_API_KEY;
       if (groqKey) {
-        console.log('🔄 Redirecting request to Groq AI...');
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -69,18 +67,13 @@ Return ONLY a valid JSON array without markdown codeblocks:
         if (text) {
           aiResults = JSON.parse(text);
           providerUsed = 'groq-llama-3.3 (Redirected from Gemini)';
-        } else {
-          console.error('🔴 Groq AI returned empty response:', data);
         }
-      } else {
-        console.error('🔴 GROQ_ANALYTICS_API_KEY missing in environment variables.');
       }
     } catch (groqErr: any) {
-      console.error('🔴 Groq AI failed as well:', groqErr.message || groqErr);
+      console.error('Groq AI failed as well:', groqErr.message || groqErr);
     }
   }
 
-  // Database me save sirf tabhi hoga jab kisi AI ne response diya ho
   if (aiResults.length > 0) {
     const upsertPayload = aiResults.map((item: any) => ({
       project_name: item.projectName,
@@ -144,9 +137,15 @@ export async function GET(request: Request) {
       }
     });
 
+    // FIXED: Loop through ALL unanalyzed projects in sub-batches of 5 instead of slicing only 5
     if (unanalyzedList.length > 0) {
-      await analyzeUnprocessedProjects(unanalyzedList.slice(0, 5));
+      const batchSize = 5;
+      for (let i = 0; i < unanalyzedList.length; i += batchSize) {
+        const subBatch = unanalyzedList.slice(i, i + batchSize);
+        await analyzeUnprocessedProjects(subBatch);
+      }
       
+      // Re-fetch updated join after all sub-batches complete
       const { data: refreshedData } = await supabase
         .from('paimana_projects')
         .select(`
@@ -189,7 +188,6 @@ export async function GET(request: Request) {
         physicalProgress: Number(p.physical_progress_pct || 0),
         costOverrun: overrun,
         
-        // Status Messaging
         estimatedDelayMonths: analytics?.estimated_delay_months || "Unanalyzed",
         riskLevel: analytics?.risk_level || "PENDING_AI",
         riskScore: analytics?.risk_score ?? 0,
