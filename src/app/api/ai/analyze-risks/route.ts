@@ -10,7 +10,30 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Collect all 5 Gemini keys from Vercel environment variables
+const GEMINI_KEYS = Array.from(
+  new Set(
+    [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_1,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+    ].filter(Boolean)
+  )
+) as string[];
+
+// Collect both Groq keys for fallback
+const GROQ_KEYS = Array.from(
+  new Set(
+    [
+      process.env.GROQ_ANALYTICS_API_KEY,
+      process.env.GROQ_API_KEY,
+    ].filter(Boolean)
+  )
+) as string[];
+
+let currentGeminiIndex = 0;
 
 async function analyzeUnprocessedProjects(projects: any[]) {
   if (!projects || projects.length === 0) return [];
@@ -33,56 +56,78 @@ Return ONLY a valid JSON array without markdown codeblocks:
   let aiResults: any[] = [];
   let providerUsed = '';
 
-  // 1. Primary Attempt: Gemini Flash API
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const res = await model.generateContent(prompt);
-    const text = res.response.text().replace(/```json|```/g, '').trim();
-    aiResults = JSON.parse(text);
-    providerUsed = 'gemini-flash';
-  } catch (geminiErr: any) {
-    console.warn('Gemini API Error, redirecting to Groq AI...', geminiErr.message || geminiErr);
-    
-    // 2. Secondary Attempt: Groq AI
+  // 1. Attempt Gemini Pool (Tries every Gemini key sequentially if 429 occurs)
+  for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
+    const keyIdx = (currentGeminiIndex + attempt) % GEMINI_KEYS.length;
+    const activeKey = GEMINI_KEYS[keyIdx];
+    const keyLabel = `Gemini Key #${keyIdx + 1}`;
+
     try {
-      const groqKey = process.env.GROQ_ANALYTICS_API_KEY;
-      if (groqKey) {
+      const genAI = new GoogleGenerativeAI(activeKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const res = await model.generateContent(prompt);
+      const text = res.response.text().replace(/```json|```/g, '').trim();
+      
+      aiResults = JSON.parse(text);
+      providerUsed = `gemini-1.5-flash (${keyLabel})`;
+
+      // Rotate pointer for next incoming batch
+      currentGeminiIndex = (keyIdx + 1) % GEMINI_KEYS.length;
+      break; // Successfully obtained output; exit loop
+    } catch (geminiErr: any) {
+      console.warn(`🔴 [${keyLabel}] Failed/Limited:`, geminiErr.message || geminiErr);
+    }
+  }
+
+  // 2. Failover: If all 5 Gemini keys fail, switch to Groq Key Pool
+  if (aiResults.length === 0 && GROQ_KEYS.length > 0) {
+    console.warn('🔴 All Gemini keys failed or rate-limited. Redirecting to Groq AI pool...');
+
+    for (let gIdx = 0; gIdx < GROQ_KEYS.length; gIdx++) {
+      const groqKey = GROQ_KEYS[gIdx];
+      const groqLabel = `Groq Key #${gIdx + 1}`;
+
+      try {
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${groqKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             model: 'llama-3.3-70b-versatile',
             messages: [
               { role: 'system', content: 'You output strict JSON arrays only.' },
-              { role: 'user', content: prompt }
+              { role: 'user', content: prompt },
             ],
-            temperature: 0.1
-          })
+            temperature: 0.1,
+          }),
         });
+
         const data = await res.json();
         const text = data?.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+
         if (text) {
           aiResults = JSON.parse(text);
-          providerUsed = 'groq-llama-3.3 (Redirected from Gemini)';
+          providerUsed = `groq-llama-3.3 (${groqLabel} - Redirected from Gemini)`;
+          break;
         }
+      } catch (groqErr: any) {
+        console.error(`🔴 [${groqLabel}] Failed:`, groqErr.message || groqErr);
       }
-    } catch (groqErr: any) {
-      console.error('Groq AI failed as well:', groqErr.message || groqErr);
     }
   }
 
+  // Persist successful AI output directly to database
   if (aiResults.length > 0) {
     const upsertPayload = aiResults.map((item: any) => ({
       project_name: item.projectName,
       risk_level: item.riskLevel || 'MEDIUM',
       risk_score: item.riskScore || 50,
-      anomalies: item.anomalies || ["Operational timeline under review"],
-      estimated_delay_months: item.estimatedDelayMonths || "3 Months",
+      anomalies: item.anomalies || ['Operational timeline under review'],
+      estimated_delay_months: item.estimatedDelayMonths || '3 Months',
       ai_provider: providerUsed,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }));
 
     await supabase
@@ -132,20 +177,20 @@ export async function GET(request: Request) {
           state: p.State,
           originalCost: p.original_cost_cr,
           anticipatedCost: p.anticipated_cost_cr,
-          physicalProgress: p.physical_progress_pct
+          physicalProgress: p.physical_progress_pct,
         });
       }
     });
 
-    // FIXED: Loop through ALL unanalyzed projects in sub-batches of 5 instead of slicing only 5
+    // Execute batch processing across the active key pool
     if (unanalyzedList.length > 0) {
       const batchSize = 5;
       for (let i = 0; i < unanalyzedList.length; i += batchSize) {
         const subBatch = unanalyzedList.slice(i, i + batchSize);
         await analyzeUnprocessedProjects(subBatch);
       }
-      
-      // Re-fetch updated join after all sub-batches complete
+
+      // Re-fetch updated analytics
       const { data: refreshedData } = await supabase
         .from('paimana_projects')
         .select(`
@@ -187,14 +232,14 @@ export async function GET(request: Request) {
         cumulativeExp: Number(p.cumulative_exp_cr || 0),
         physicalProgress: Number(p.physical_progress_pct || 0),
         costOverrun: overrun,
-        
-        estimatedDelayMonths: analytics?.estimated_delay_months || "Unanalyzed",
-        riskLevel: analytics?.risk_level || "PENDING_AI",
+
+        estimatedDelayMonths: analytics?.estimated_delay_months || 'Unanalyzed',
+        riskLevel: analytics?.risk_level || 'PENDING_AI',
         riskScore: analytics?.risk_score ?? 0,
         anomalies: analytics?.anomalies || [
-          "⚠️ Gemini failed -> Redirected to Groq AI -> Both AI failed. Ready for Mathematical Fallback."
+          '⚠️ All 5 Gemini keys failed -> Redirected to Groq pool -> Both AI failed. Ready for Mathematical Fallback.',
         ],
-        aiProvider: analytics?.ai_provider || "AI_FAILED_PENDING_MATH_FALLBACK"
+        aiProvider: analytics?.ai_provider || 'AI_FAILED_PENDING_MATH_FALLBACK',
       };
     });
 
@@ -206,9 +251,8 @@ export async function GET(request: Request) {
       analysis: formatted,
       total: totalCount,
       nextOffset: nextOffset,
-      hasMore: nextOffset < totalCount
+      hasMore: nextOffset < totalCount,
     });
-
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
