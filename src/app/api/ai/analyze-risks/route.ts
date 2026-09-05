@@ -36,7 +36,7 @@ Return ONLY a valid JSON array without markdown codeblocks:
   // 1. Primary Attempt: Gemini Flash API
   try {
     console.log('🤖 Attempting primary processing with Gemini Flash...');
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     const res = await model.generateContent(prompt);
     const text = res.response.text().replace(/```json|```/g, '').trim();
     aiResults = JSON.parse(text);
