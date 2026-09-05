@@ -122,7 +122,7 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    // Check which projects are missing analytics
+    // Check which projects are missing analytics in this chunk
     const unanalyzedList: any[] = [];
     (rawProjects || []).forEach((p: any) => {
       const analytics = Array.isArray(p.paimana_project_analytics)
@@ -180,7 +180,7 @@ export async function GET(request: Request) {
       const overrun = orig > 0 ? Number(((anti - orig) / orig * 100).toFixed(1)) : 0;
       const progress = Number(p.physical_progress_pct || 50);
 
-      // Smart Fallback Logic if AI call was skipped/failed
+      // Smart Fallback Logic
       const fallbackRisk = overrun > 20 || progress < 30 ? 'HIGH' : overrun > 10 || progress < 60 ? 'MEDIUM' : 'LOW';
       const fallbackScore = fallbackRisk === 'HIGH' ? 85 : fallbackRisk === 'MEDIUM' ? 55 : 25;
       
@@ -209,11 +209,15 @@ export async function GET(request: Request) {
       };
     });
 
+    const nextOffset = offset + (rawProjects?.length || 0);
+    const totalCount = count || 819;
+
     return NextResponse.json({
       success: true,
       analysis: formatted,
-      total: count || 0,
-      hasMore: offset + (rawProjects?.length || 0) < (count || 0)
+      total: totalCount,
+      nextOffset: nextOffset, // Fixed: Added nextOffset back
+      hasMore: nextOffset < totalCount
     });
 
   } catch (err: any) {
