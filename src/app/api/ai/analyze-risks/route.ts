@@ -12,7 +12,6 @@ const supabase = createClient(
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-// Dual-AI Engine (Gemini -> Groq Fallback)
 async function analyzeUnprocessedProjects(projects: any[]) {
   if (!projects || projects.length === 0) return [];
 
@@ -32,21 +31,24 @@ Return ONLY a valid JSON array without markdown codeblocks:
 ]`;
 
   let aiResults: any[] = [];
-  let providerUsed = 'gemini';
+  let providerUsed = '';
 
-  // 1. Try Gemini
+  // 1. Primary Attempt: Gemini Flash API
   try {
+    console.log('🤖 Attempting primary processing with Gemini Flash...');
     const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const res = await model.generateContent(prompt);
     const text = res.response.text().replace(/```json|```/g, '').trim();
     aiResults = JSON.parse(text);
-  } catch (geminiErr) {
-    console.warn('Gemini limit or error, falling back to Groq...', geminiErr);
+    providerUsed = 'gemini-flash';
+  } catch (geminiErr: any) {
+    console.warn('🔴 Gemini API Failed! Status: Redirecting to Groq AI...', geminiErr.message || geminiErr);
     
-    // 2. Try Groq Fallback
+    // 2. Secondary Attempt: Groq AI
     try {
       const groqKey = process.env.GROQ_ANALYTICS_API_KEY;
       if (groqKey) {
+        console.log('🔄 Redirecting request to Groq AI...');
         const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -66,21 +68,25 @@ Return ONLY a valid JSON array without markdown codeblocks:
         const text = data?.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
         if (text) {
           aiResults = JSON.parse(text);
-          providerUsed = 'groq';
+          providerUsed = 'groq-llama-3.3 (Redirected from Gemini)';
+        } else {
+          console.error('🔴 Groq AI returned empty response:', data);
         }
+      } else {
+        console.error('🔴 GROQ_ANALYTICS_API_KEY missing in environment variables.');
       }
-    } catch (groqErr) {
-      console.error('Groq fallback failed as well:', groqErr);
+    } catch (groqErr: any) {
+      console.error('🔴 Groq AI failed as well:', groqErr.message || groqErr);
     }
   }
 
+  // Database me save sirf tabhi hoga jab kisi AI ne response diya ho
   if (aiResults.length > 0) {
-    // Save generated analytics directly into `paimana_project_analytics`
     const upsertPayload = aiResults.map((item: any) => ({
       project_name: item.projectName,
       risk_level: item.riskLevel || 'MEDIUM',
       risk_score: item.riskScore || 50,
-      anomalies: item.anomalies || ["Monitoring operational timeline"],
+      anomalies: item.anomalies || ["Operational timeline under review"],
       estimated_delay_months: item.estimatedDelayMonths || "3 Months",
       ai_provider: providerUsed,
       updated_at: new Date().toISOString()
@@ -100,7 +106,6 @@ export async function GET(request: Request) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = parseInt(searchParams.get('limit') || '25', 10);
 
-    // Fetch projects along with linked analytics from new table
     const { data: rawProjects, count, error } = await supabase
       .from('paimana_projects')
       .select(`
@@ -122,7 +127,6 @@ export async function GET(request: Request) {
 
     if (error) throw error;
 
-    // Check which projects are missing analytics in this chunk
     const unanalyzedList: any[] = [];
     (rawProjects || []).forEach((p: any) => {
       const analytics = Array.isArray(p.paimana_project_analytics)
@@ -140,11 +144,9 @@ export async function GET(request: Request) {
       }
     });
 
-    // Auto-analyze missing projects on the fly (up to 5 per request to prevent timeout)
     if (unanalyzedList.length > 0) {
       await analyzeUnprocessedProjects(unanalyzedList.slice(0, 5));
       
-      // Re-fetch updated join
       const { data: refreshedData } = await supabase
         .from('paimana_projects')
         .select(`
@@ -169,27 +171,14 @@ export async function GET(request: Request) {
       }
     }
 
-    // Format output
     const formatted = (rawProjects || []).map((p: any, idx: number) => {
       const analytics = Array.isArray(p.paimana_project_analytics)
         ? p.paimana_project_analytics[0]
         : p.paimana_project_analytics;
 
-      const orig = Number(p.original_cost_cr || 100);
-      const anti = Number(p.anticipated_cost_cr || orig);
+      const orig = Number(p.original_cost_cr || 0);
+      const anti = Number(p.anticipated_cost_cr || 0);
       const overrun = orig > 0 ? Number(((anti - orig) / orig * 100).toFixed(1)) : 0;
-      const progress = Number(p.physical_progress_pct || 50);
-
-      // Smart Fallback Logic
-      const fallbackRisk = overrun > 20 || progress < 30 ? 'HIGH' : overrun > 10 || progress < 60 ? 'MEDIUM' : 'LOW';
-      const fallbackScore = fallbackRisk === 'HIGH' ? 85 : fallbackRisk === 'MEDIUM' ? 55 : 25;
-      
-      let fallbackDelay = "1-2 Months";
-      if (fallbackRisk === 'HIGH') {
-        fallbackDelay = `${Math.max(8, Math.round(overrun * 0.4))} Months`;
-      } else if (fallbackRisk === 'MEDIUM') {
-        fallbackDelay = `${Math.max(4, Math.round(overrun * 0.3))} Months`;
-      }
 
       return {
         projectName: p.project_name || `Project #${offset + idx + 1}`,
@@ -197,15 +186,17 @@ export async function GET(request: Request) {
         originalCost: orig,
         anticipatedCost: anti,
         cumulativeExp: Number(p.cumulative_exp_cr || 0),
-        physicalProgress: progress,
+        physicalProgress: Number(p.physical_progress_pct || 0),
         costOverrun: overrun,
-        estimatedDelayMonths: analytics?.estimated_delay_months || fallbackDelay,
-        riskLevel: analytics?.risk_level || fallbackRisk,
-        riskScore: analytics?.risk_score || fallbackScore,
+        
+        // Status Messaging
+        estimatedDelayMonths: analytics?.estimated_delay_months || "Unanalyzed",
+        riskLevel: analytics?.risk_level || "PENDING_AI",
+        riskScore: analytics?.risk_score ?? 0,
         anomalies: analytics?.anomalies || [
-          fallbackRisk === 'HIGH' ? "Significant overrun detected" : "Project progressing normally"
+          "⚠️ Gemini failed -> Redirected to Groq AI -> Both AI failed. Ready for Mathematical Fallback."
         ],
-        aiProvider: analytics?.ai_provider || 'algorithmic-fallback'
+        aiProvider: analytics?.ai_provider || "AI_FAILED_PENDING_MATH_FALLBACK"
       };
     });
 
@@ -216,7 +207,7 @@ export async function GET(request: Request) {
       success: true,
       analysis: formatted,
       total: totalCount,
-      nextOffset: nextOffset, // Fixed: Added nextOffset back
+      nextOffset: nextOffset,
       hasMore: nextOffset < totalCount
     });
 
