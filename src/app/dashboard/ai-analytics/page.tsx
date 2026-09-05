@@ -1,4 +1,5 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Search, SlidersHorizontal, Activity } from 'lucide-react'
 
@@ -51,14 +52,14 @@ export default function AIAnalyticsPage() {
             hasMore = data.hasMore;
 
             if (hasMore) {
-              await new Promise(resolve => setTimeout(resolve, 300));
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
           } else {
             break;
           }
         }
       } catch (err) {
-        console.error('Failed to load AI analytics chunks', err);
+        console.error('Failed to load AI analytics chunks:', err);
       } finally {
         setLoading(false);
       }
@@ -72,7 +73,8 @@ export default function AIAnalyticsPage() {
   }, [searchTerm, filterRisk])
 
   const filtered = projects.filter(p => {
-    const matchesSearch = p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || p.state.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.state.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRisk = filterRisk === 'ALL' || p.riskLevel === filterRisk
     return matchesSearch && matchesRisk
   })
@@ -87,7 +89,7 @@ export default function AIAnalyticsPage() {
   return (
     <div className="p-4 sm:p-8 bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/30 min-h-screen text-slate-900 font-sans">
       {/* Header Section */}
-      <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-slate-200/80 shadow-sm">
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-slate-200/80 shadow-xs">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold tracking-wide uppercase">
             <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
@@ -152,7 +154,7 @@ export default function AIAnalyticsPage() {
         </div>
       </div>
 
-      {/* Initial Loading Skeleton / State */}
+      {/* Initial Loading Skeleton */}
       {loading && projects.length === 0 ? (
         <div className="p-20 text-center bg-white border border-slate-200 rounded-3xl shadow-xs flex flex-col items-center justify-center gap-5">
           <div className="relative flex items-center justify-center">
@@ -168,7 +170,7 @@ export default function AIAnalyticsPage() {
         </div>
       ) : (
         <>
-          {/* Progress Banner during Live Chunk Loading */}
+          {/* Live Progress Bar during Chunk Loading */}
           {loading && (
             <div className="mb-8 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
               <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -215,7 +217,7 @@ export default function AIAnalyticsPage() {
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   
                   <div>
-                    {/* Card Top Meta */}
+                    {/* Card Top Header */}
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-[11px] font-extrabold tracking-wider uppercase px-3 py-1 rounded-xl bg-slate-100 text-slate-600 border border-slate-200/60 shadow-xs">
                         {project.state}
@@ -236,7 +238,7 @@ export default function AIAnalyticsPage() {
                       {project.projectName}
                     </h3>
 
-                    {/* Core Metric Highlights */}
+                    {/* Metric Highlights */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
                         <div>
@@ -260,7 +262,7 @@ export default function AIAnalyticsPage() {
                       </div>
                     </div>
 
-                    {/* Detailed Financial Breakdown */}
+                    {/* Financial Breakdown */}
                     <div className="grid grid-cols-4 gap-2 mb-5 text-center">
                       <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-xs">
                         <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Original</p>
@@ -280,7 +282,7 @@ export default function AIAnalyticsPage() {
                       </div>
                     </div>
 
-                    {/* AI Audit Findings Container */}
+                    {/* AI Audit Findings */}
                     <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60 shadow-inner">
                       <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-purple-600" /> AI-Generated Audit Findings
@@ -300,7 +302,7 @@ export default function AIAnalyticsPage() {
             </div>
           )}
 
-          {/* Pagination Footer */}
+          {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="mt-8 px-6 py-4 bg-white border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
               <p className="text-xs text-slate-500 font-medium">
