@@ -1,6 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { Bot, Send, User, Loader2, Sparkles, AlertTriangle, Trash2, HelpCircle } from 'lucide-react'
+import MarkdownRenderer from '@/components/MarkdownRenderer'
 
 interface Message {
   id: number
@@ -20,7 +21,7 @@ export default function ChatbotPage() {
     { 
       id: 1, 
       role: 'ai', 
-      content: 'Namaste! I am the PAIMANA AI Assistant powered by Groq Llama-3.3. I am connected directly to the MoSPI infrastructure database. Ask me to predict cost overruns, analyze state-wise delays, or evaluate specific project risks.' 
+      content: 'Namaste! I am the PAIMANA AI Assistant powered by Groq. I am connected directly to the MoSPI infrastructure database. Ask me to predict cost overruns, analyze state-wise delays, or evaluate specific project risks.' 
     }
   ])
   const [input, setInput] = useState('')
@@ -97,7 +98,7 @@ export default function ChatbotPage() {
             PAIMANA Predictive AI Assistant
           </h1>
           <p className="text-slate-500 text-xs md:text-sm mt-0.5">
-            Groq Llama 3.3 Engine • MoSPI Infrastructure Analytics
+            Groq LLM Engine • MoSPI Infrastructure Analytics
           </p>
         </div>
         <button 
@@ -124,13 +125,17 @@ export default function ChatbotPage() {
                 </div>
               )}
 
-              {/* Message Bubble with High Contrast Formatting */}
-              <div className={`max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+              {/* Message Bubble with Markdown Support */}
+              <div className={`max-w-[90%] md:max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed overflow-hidden ${
                 msg.role === 'user' 
-                  ? 'bg-slate-900 text-white font-medium rounded-br-sm shadow-md' 
+                  ? 'bg-slate-900 text-white font-medium rounded-br-sm shadow-md whitespace-pre-wrap' 
                   : 'bg-white text-slate-800 border border-slate-200 rounded-bl-sm shadow-sm'
               }`}>
-                {msg.content}
+                {msg.role === 'ai' ? (
+                  <MarkdownRenderer content={msg.content} />
+                ) : (
+                  msg.content
+                )}
               </div>
 
               {msg.role === 'user' && (
