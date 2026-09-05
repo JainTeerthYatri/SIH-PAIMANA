@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// 1. SUPABASE CLIENT INITIALIZATION (Auto-detects Environment Variables)
+// 1. SUPABASE CLIENT INITIALIZATION
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = 
   process.env.SUPABASE_SERVICE_ROLE_KEY || 
@@ -10,7 +10,6 @@ const supabaseKey =
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Database Row Structure Matching Supabase 'paimana_projects' Schema
 interface ProjectRow {
   project_name: string;
   State: string;
@@ -48,7 +47,7 @@ export async function POST(req: Request) {
     const userQuery = latestMessageObj.content.trim();
     const queryLower = userQuery.toLowerCase();
 
-    // 2. STOP-WORDS FILTERING (Prevents 'projects' or 'show' word collision)
+    // 2. STOP-WORDS FILTERING
     const STOP_WORDS = new Set([
       "show", "projects", "project", "list", "give", "tell", "details", "status", 
       "about", "what", "which", "where", "have", "with", "from", "for", "state", 
@@ -59,19 +58,22 @@ export async function POST(req: Request) {
     const searchKeywords = rawWords.filter((w: string) => w.length > 2 && !STOP_WORDS.has(w));
 
     let matchedProjects: ProjectRow[] = [];
+    let totalMatchCount = 0;
 
-    // 3. DIRECT QUERY TO SUPABASE DATABASE
+    // 3. DIRECT QUERY TO SUPABASE DATABASE WITH EXACT COUNT
     if (searchKeywords.length > 0) {
       const orConditions = searchKeywords.map((kw: string) => `State.ilike.%${kw}%,project_name.ilike.%${kw}%`).join(',');
       
-      const { data, error } = await supabase
+      const { data, count, error } = await supabase
         .from('paimana_projects')
-        .select('*')
+        .select('*', { count: 'exact' })
         .or(orConditions)
+        .order('cost_overrun_cr', { ascending: false })
         .limit(10);
 
       if (!error && data) {
         matchedProjects = data as ProjectRow[];
+        totalMatchCount = count || matchedProjects.length;
       } else if (error) {
         console.error("Supabase Query Error:", error);
       }
@@ -94,10 +96,13 @@ export async function POST(req: Request) {
 
 CORE MANDATE & RULES:
 1. Answer queries strictly related to Central Sector Infrastructure projects, cost overruns, delays, state allocations, and dataset statistics.
-2. Rely strictly on the Supabase database snapshot provided below to answer the user's specific query.
-3. Provide complete, structured, human-readable responses with concrete numbers and project names.
+2. Rely strictly on the Supabase database snapshot provided below.
+3. CRITICAL: Always explicitly state the TOTAL count of matching projects found in the database (e.g., "There are 56 projects in Assam in the MoSPI database..."), and then present/detail the top key projects provided in the context below.
+4. Provide complete, structured, human-readable responses with concrete numbers and project names.
 
-LIVE SUPABASE DATABASE CONTEXT FOR QUERY:
+TOTAL MATCHING PROJECTS IN SUPABASE DATABASE: ${totalMatchCount > 0 ? totalMatchCount : matchedProjects.length}
+
+TOP MATCHED PROJECTS CONTEXT:
 ${matchedContext || "No direct matches found in database."}`;
 
     const groqApiKey = process.env.GROQ_API_KEY;
@@ -142,14 +147,14 @@ ${matchedContext || "No direct matches found in database."}`;
       }
     }
 
-    // 6. LOCAL DIRECT FORMATTED RESPONSE (If Groq API Key is missing or fails)
+    // 6. LOCAL DIRECT FORMATTED RESPONSE (Fallback)
     if (matchedProjects.length > 0) {
-      const projectList = matchedProjects.slice(0, 5).map((p: ProjectRow, idx: number) => 
+      const projectList = matchedProjects.slice(0, 10).map((p: ProjectRow, idx: number) => 
         `**${idx + 1}. ${p.project_name}**\n   - **State:** ${p.State}\n   - **Anticipated Cost:** ₹${(p.anticipated_cost_cr || 0).toLocaleString('en-IN')} Cr\n   - **Cost Overrun:** ₹${(p.cost_overrun_cr || 0).toLocaleString('en-IN')} Cr\n   - **Progress:** ${p.physical_progress_pct || 0}%`
       ).join('\n\n');
 
       return NextResponse.json({ 
-        reply: `Found **${matchedProjects.length}** project(s) matching your query in the Supabase database:\n\n${projectList}` 
+        reply: `There are **${totalMatchCount}** project(s) matching your query in the Supabase database. Here are the top major projects:\n\n${projectList}` 
       });
     }
 
