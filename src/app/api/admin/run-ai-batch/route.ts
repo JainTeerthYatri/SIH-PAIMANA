@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const maxDuration = 300;
+export const maxDuration = 60; // Set maximum execution time for Vercel
 export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
@@ -10,121 +10,182 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// 1. Collect 5 Gemini Keys into Pool
+const GEMINI_KEYS = Array.from(
+  new Set(
+    [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_1,
+      process.env.GEMINI_API_KEY_2,
+      process.env.GEMINI_API_KEY_3,
+      process.env.GEMINI_API_KEY_4,
+    ].filter(Boolean)
+  )
+) as string[];
 
-// Dual-LLM Resilient Caller (Gemini 3.7 Flash -> Groq Fallback)
-async function callDualAI(prompt: string) {
-  // 1. Try Primary: Gemini 3.7 Flash
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.7-flash' });
-    const res = await model.generateContent(prompt);
-    const text = res.response.text();
-    return { text, provider: 'gemini-3.7-flash' };
-  } catch (geminiErr) {
-    console.warn('Gemini 3.7 Flash Limit Hit/Error, switching to Dedicated Groq Key...');
-  }
+// 2. ONLY Groq Analytics Key (Ignoring main GROQ_API_KEY reserved for chatbot)
+const GROQ_ANALYTICS_KEY = process.env.GROQ_ANALYTICS_API_KEY;
 
-  // 2. Try Secondary: Groq API with Analytics Key
-  try {
-    const groqKey = process.env.GROQ_ANALYTICS_API_KEY;
-    if (!groqKey) throw new Error('GROQ_ANALYTICS_API_KEY missing');
+let currentGeminiIndex = 0;
 
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: 'You output strict JSON only.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1
-      })
-    });
+async function analyzeChunk(projects: any[]) {
+  if (!projects || projects.length === 0) return [];
 
-    const data = await res.json();
-    const text = data?.choices?.[0]?.message?.content;
-    if (!text) throw new Error('Empty response from Groq');
+  const prompt = `
+Analyze these infrastructure projects and determine risk metrics:
+${JSON.stringify(projects)}
 
-    return { text, provider: 'groq-llama-3.3' };
-  } catch (groqErr) {
-    throw new Error('Both Gemini and Groq Analytics APIs failed!');
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    // Un-analyzed projects find karo using LEFT JOIN logic
-    const { data: allProjects, error: fetchErr } = await supabase
-      .from('paimana_projects')
-      .select('project_name, State, original_cost_cr, anticipated_cost_cr, physical_progress_pct')
-      .limit(10); // Batch of 10
-
-    if (fetchErr || !allProjects) throw fetchErr;
-
-    // Filter projects not in paimana_project_analytics
-    const { data: existingAnalytics } = await supabase
-      .from('paimana_project_analytics')
-      .select('project_name');
-
-    const processedNames = new Set(existingAnalytics?.map(a => a.project_name) || []);
-    const unanalyzedBatch = allProjects.filter(p => !processedNames.has(p.project_name));
-
-    if (unanalyzedBatch.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'All projects are fully analyzed in paimana_project_analytics table!'
-      });
-    }
-
-    const prompt = `
-Analyze these ${unanalyzedBatch.length} infrastructure projects and perform risk evaluation.
-
-Input Data:
-${JSON.stringify(unanalyzedBatch)}
-
-Return ONLY a valid JSON array without markdown formatting:
+Return ONLY a valid JSON array without markdown codeblocks:
 [
   {
     "projectName": "Exact Project Name",
     "riskLevel": "HIGH" | "MEDIUM" | "LOW",
     "riskScore": number (0-100),
     "estimatedDelayMonths": "X Months",
-    "anomalies": ["Finding 1", "Finding 2"]
+    "anomalies": ["Key Issue 1", "Key Issue 2"]
   }
 ]`;
 
-    const { text, provider } = await callDualAI(prompt);
-    const cleanedJson = text.replace(/```json|```/g, '').trim();
-    const aiResults = JSON.parse(cleanedJson);
+  let aiResults: any[] = [];
+  let providerUsed = '';
 
-    // Write results to paimana_project_analytics table
+  // 1. Attempt Gemini Pool
+  for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
+    const keyIdx = (currentGeminiIndex + attempt) % GEMINI_KEYS.length;
+    const activeKey = GEMINI_KEYS[keyIdx];
+    const keyLabel = `Gemini Key #${keyIdx + 1}`;
+
+    try {
+      const genAI = new GoogleGenerativeAI(activeKey);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const res = await model.generateContent(prompt);
+      const text = res.response.text().replace(/```json|```/g, '').trim();
+
+      aiResults = JSON.parse(text);
+      providerUsed = `gemini-1.5-flash (${keyLabel})`;
+
+      currentGeminiIndex = (keyIdx + 1) % GEMINI_KEYS.length;
+      break;
+    } catch (err: any) {
+      console.warn(`⚠️ [${keyLabel}] failed or rate-limited:`, err.message || err);
+    }
+  }
+
+  // 2. Failover to GROQ_ANALYTICS_API_KEY only
+  if (aiResults.length === 0 && GROQ_ANALYTICS_KEY) {
+    console.warn('🔄 All Gemini keys exhausted. Falling back to GROQ_ANALYTICS_API_KEY...');
+
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_ANALYTICS_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'You output strict JSON arrays only.' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.1,
+        }),
+      });
+
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
+
+      if (text) {
+        aiResults = JSON.parse(text);
+        providerUsed = 'groq-llama-3.3 (GROQ_ANALYTICS_API_KEY)';
+      }
+    } catch (groqErr: any) {
+      console.error('❌ Groq Analytics Key failed:', groqErr.message || groqErr);
+    }
+  }
+
+  // Upsert into database
+  if (aiResults.length > 0) {
     const upsertPayload = aiResults.map((item: any) => ({
       project_name: item.projectName,
-      risk_level: item.riskLevel,
-      risk_score: item.riskScore,
-      anomalies: item.anomalies,
-      estimated_delay_months: item.estimatedDelayMonths,
-      ai_provider: provider,
-      updated_at: new Date().toISOString()
+      risk_level: item.riskLevel || 'MEDIUM',
+      risk_score: item.riskScore || 50,
+      anomalies: item.anomalies || ['Operational timeline under review'],
+      estimated_delay_months: item.estimatedDelayMonths || '3 Months',
+      ai_provider: providerUsed,
+      updated_at: new Date().toISOString(),
     }));
 
-    const { error: insertErr } = await supabase
+    await supabase
       .from('paimana_project_analytics')
       .upsert(upsertPayload, { onConflict: 'project_name' });
+  }
 
-    if (insertErr) throw insertErr;
+  return aiResults;
+}
+
+export async function POST(request: Request) {
+  try {
+    // 1. Fetch raw projects
+    const { data: rawProjects, error: fetchErr } = await supabase
+      .from('paimana_projects')
+      .select('project_name, State, original_cost_cr, anticipated_cost_cr, physical_progress_pct');
+
+    if (fetchErr || !rawProjects) {
+      return NextResponse.json({ success: false, error: fetchErr?.message || 'No projects found' }, { status: 500 });
+    }
+
+    // 2. Fetch existing analytics
+    const { data: existingAnalytics } = await supabase
+      .from('paimana_project_analytics')
+      .select('project_name');
+
+    const analyzedSet = new Set((existingAnalytics || []).map((a) => a.project_name));
+    const pendingProjects = rawProjects.filter((p) => !analyzedSet.has(p.project_name));
+
+    if (pendingProjects.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'All projects are already analyzed!',
+        total: rawProjects.length,
+        analyzed: analyzedSet.size,
+        processedInThisRun: 0,
+      });
+    }
+
+    // 3. Process in batches of 5
+    const batchSize = 5;
+    let totalProcessedInRun = 0;
+
+    for (let i = 0; i < pendingProjects.length; i += batchSize) {
+      const chunk = pendingProjects.slice(i, i + batchSize);
+
+      const formattedChunk = chunk.map((p) => ({
+        projectName: p.project_name,
+        state: p.State,
+        originalCost: p.original_cost_cr,
+        anticipatedCost: p.anticipated_cost_cr,
+        physicalProgress: p.physical_progress_pct,
+      }));
+
+      const res = await analyzeChunk(formattedChunk);
+      totalProcessedInRun += res.length;
+    }
 
     return NextResponse.json({
       success: true,
-      processed: upsertPayload.length,
-      providerUsed: provider
+      message: 'Batch processing executed successfully.',
+      totalProjects: rawProjects.length,
+      previouslyAnalyzed: analyzedSet.size,
+      newlyProcessed: totalProcessedInRun,
     });
 
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+// Support GET requests as well for easy triggering via browser or cron
+export async function GET(request: Request) {
+  return POST(request);
 }

@@ -23,15 +23,8 @@ const GEMINI_KEYS = Array.from(
   )
 ) as string[];
 
-// Collect both Groq keys for fallback
-const GROQ_KEYS = Array.from(
-  new Set(
-    [
-      process.env.GROQ_ANALYTICS_API_KEY,
-      process.env.GROQ_API_KEY,
-    ].filter(Boolean)
-  )
-) as string[];
+// Dedicated Groq Key ONLY for Analytics
+const GROQ_ANALYTICS_KEY = process.env.GROQ_ANALYTICS_API_KEY;
 
 let currentGeminiIndex = 0;
 
@@ -56,7 +49,7 @@ Return ONLY a valid JSON array without markdown codeblocks:
   let aiResults: any[] = [];
   let providerUsed = '';
 
-  // 1. Attempt Gemini Pool (Tries every Gemini key sequentially if 429 occurs)
+  // 1. Attempt Gemini Pool (5 Keys)
   for (let attempt = 0; attempt < GEMINI_KEYS.length; attempt++) {
     const keyIdx = (currentGeminiIndex + attempt) % GEMINI_KEYS.length;
     const activeKey = GEMINI_KEYS[keyIdx];
@@ -67,58 +60,51 @@ Return ONLY a valid JSON array without markdown codeblocks:
       const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const res = await model.generateContent(prompt);
       const text = res.response.text().replace(/```json|```/g, '').trim();
-      
+
       aiResults = JSON.parse(text);
       providerUsed = `gemini-1.5-flash (${keyLabel})`;
 
-      // Rotate pointer for next incoming batch
       currentGeminiIndex = (keyIdx + 1) % GEMINI_KEYS.length;
-      break; // Successfully obtained output; exit loop
+      break;
     } catch (geminiErr: any) {
       console.warn(`🔴 [${keyLabel}] Failed/Limited:`, geminiErr.message || geminiErr);
     }
   }
 
-  // 2. Failover: If all 5 Gemini keys fail, switch to Groq Key Pool
-  if (aiResults.length === 0 && GROQ_KEYS.length > 0) {
-    console.warn('🔴 All Gemini keys failed or rate-limited. Redirecting to Groq AI pool...');
+  // 2. Failover: Groq Analytics Key Only
+  if (aiResults.length === 0 && GROQ_ANALYTICS_KEY) {
+    console.warn('🔴 All Gemini keys failed. Redirecting to GROQ_ANALYTICS_API_KEY...');
 
-    for (let gIdx = 0; gIdx < GROQ_KEYS.length; gIdx++) {
-      const groqKey = GROQ_KEYS[gIdx];
-      const groqLabel = `Groq Key #${gIdx + 1}`;
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${GROQ_ANALYTICS_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'You output strict JSON arrays only.' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.1,
+        }),
+      });
 
-      try {
-        const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${groqKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: 'You output strict JSON arrays only.' },
-              { role: 'user', content: prompt },
-            ],
-            temperature: 0.1,
-          }),
-        });
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
 
-        const data = await res.json();
-        const text = data?.choices?.[0]?.message?.content?.replace(/```json|```/g, '').trim();
-
-        if (text) {
-          aiResults = JSON.parse(text);
-          providerUsed = `groq-llama-3.3 (${groqLabel} - Redirected from Gemini)`;
-          break;
-        }
-      } catch (groqErr: any) {
-        console.error(`🔴 [${groqLabel}] Failed:`, groqErr.message || groqErr);
+      if (text) {
+        aiResults = JSON.parse(text);
+        providerUsed = 'groq-llama-3.3 (GROQ_ANALYTICS_API_KEY)';
       }
+    } catch (groqErr: any) {
+      console.error('🔴 Groq Analytics Key Failed:', groqErr.message || groqErr);
     }
   }
 
-  // Persist successful AI output directly to database
+  // Save results to Supabase
   if (aiResults.length > 0) {
     const upsertPayload = aiResults.map((item: any) => ({
       project_name: item.projectName,
@@ -182,7 +168,6 @@ export async function GET(request: Request) {
       }
     });
 
-    // Execute batch processing across the active key pool
     if (unanalyzedList.length > 0) {
       const batchSize = 5;
       for (let i = 0; i < unanalyzedList.length; i += batchSize) {
@@ -190,7 +175,6 @@ export async function GET(request: Request) {
         await analyzeUnprocessedProjects(subBatch);
       }
 
-      // Re-fetch updated analytics
       const { data: refreshedData } = await supabase
         .from('paimana_projects')
         .select(`
@@ -237,7 +221,7 @@ export async function GET(request: Request) {
         riskLevel: analytics?.risk_level || 'PENDING_AI',
         riskScore: analytics?.risk_score ?? 0,
         anomalies: analytics?.anomalies || [
-          '⚠️ All 5 Gemini keys failed -> Redirected to Groq pool -> Both AI failed. Ready for Mathematical Fallback.',
+          '⚠️ All Gemini keys failed -> Groq Analytics failed. Pending Fallback.',
         ],
         aiProvider: analytics?.ai_provider || 'AI_FAILED_PENDING_MATH_FALLBACK',
       };
