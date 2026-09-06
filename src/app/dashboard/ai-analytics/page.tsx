@@ -50,10 +50,8 @@ function AnalyticsContent() {
         setLoading(true);
         const res = await fetch('/api/projects/drivers');
         const data = await res.json();
-        console.log('Fetched Projects Data:', data); // Debugging to check API payload
         
         if (data) {
-          // Handle both array response or object containing projects array
           const rawList = Array.isArray(data) ? data : (data.projects || data.data || []);
           const mapped = rawList.map((p: any) => ({
             id: p.id || p._id,
@@ -97,7 +95,6 @@ function AnalyticsContent() {
 
   const stateData: StateAggregation[] = Object.values(stateMap);
 
-  // Updated to 2026 current year timeline with realistic historical progression
   const historicalTrendData: HistoricalTrend[] = [
     { year: '2022', avgDelayMonths: 11.2, avgCostOverrunPct: 16.8 },
     { year: '2023', avgDelayMonths: 15.4, avgCostOverrunPct: 22.1 },
@@ -176,23 +173,26 @@ function AnalyticsContent() {
             </div>
           </div>
 
-          <div style={{ width: '100%', height: '280px' }}>
-            {stateData.length > 0 ? (
-              <ResponsiveContainer>
-                <BarChart data={stateData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
-                  <XAxis dataKey="state" tick={{ fontSize: 12, fill: '#4A5568' }} />
-                  <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} formatter={(val: any) => [`₹${Number(val || 0).toFixed(0)} Cr`, 'Cost Overrun']} />
-                  <Bar dataKey="costEscalationCr" fill="#17365D" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#718096', gap: '0.5rem' }}>
-                <span style={{ fontWeight: 600 }}>No state data found</span>
-                <span style={{ fontSize: '0.75rem' }}>Total loaded records: {projects.length}</span>
-              </div>
-            )}
+          {/* Inner card padding and border matching the benchmark reference style */}
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '12px', padding: '1rem' }}>
+            <div style={{ width: '100%', height: '280px' }}>
+              {stateData.length > 0 ? (
+                <ResponsiveContainer>
+                  <BarChart data={stateData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
+                    <XAxis dataKey="state" tick={{ fontSize: 12, fill: '#4A5568' }} />
+                    <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} formatter={(val: any) => [`₹${Number(val || 0).toFixed(0)} Cr`, 'Cost Overrun']} />
+                    <Bar dataKey="costEscalationCr" fill="#17365D" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#718096', gap: '0.5rem' }}>
+                  <span style={{ fontWeight: 600 }}>No state data found</span>
+                  <span style={{ fontSize: '0.75rem' }}>Total loaded records: {projects.length}</span>
+                </div>
+              )}
+            </div>
           </div>
         </motion.div>
 
@@ -213,18 +213,21 @@ function AnalyticsContent() {
             </div>
           </div>
 
-          <div style={{ width: '100%', height: '280px' }}>
-            <ResponsiveContainer>
-              <LineChart data={historicalTrendData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
-                <XAxis dataKey="year" tick={{ fontSize: 12, fill: '#4A5568' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} />
-                <Legend />
-                <Line type="monotone" dataKey="avgDelayMonths" name="Avg Delay (Months)" stroke="#E53E3E" strokeWidth={3} dot={{ r: 4 }} />
-                <Line type="monotone" dataKey="avgCostOverrunPct" name="Avg Cost Variance %" stroke="#F59A00" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
+          {/* Inner card padding and border matching the benchmark reference style */}
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '12px', padding: '1rem' }}>
+            <div style={{ width: '100%', height: '280px' }}>
+              <ResponsiveContainer>
+                <LineChart data={historicalTrendData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12, fill: '#4A5568' }} />
+                  <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="avgDelayMonths" name="Avg Delay (Months)" stroke="#E53E3E" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="avgCostOverrunPct" name="Avg Cost Variance %" stroke="#F59A00" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </motion.div>
 
