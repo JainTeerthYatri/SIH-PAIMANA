@@ -13,8 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  ShieldCheck,
-  UserCheck
+  ShieldCheck
 } from 'lucide-react'
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
@@ -40,8 +39,8 @@ export default function AlertCenterPage() {
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
   
-  // 🔐 3-Level Security Role State (officer | admin | super-admin)
-  const [userRole, setUserRole] = useState<UserRole>('admin') // Defaulted to 'admin' (Change/Fetch as per Auth session)
+  // 🔐 3-Level Security Role State
+  const [userRole, setUserRole] = useState<UserRole>('admin')
 
   // 📄 Database Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -188,10 +187,8 @@ export default function AlertCenterPage() {
     setCurrentPage(1)
   }
 
-  // Security check: Only admin and super-admin can update alert status
   const canChangeStatus = userRole === 'admin' || userRole === 'super-admin'
 
-  // Client Filter
   const filteredAlerts = alerts.filter((a) => {
     const matchesSev = filterSeverity === 'ALL' || a.severity === filterSeverity
     const matchesStat = filterStatus === 'ALL' || a.status === filterStatus
@@ -203,86 +200,82 @@ export default function AlertCenterPage() {
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
-      {/* 🏛️ Page Title & STRICT SINGLE-LINE Stats Header */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300">
-        <div>
+      {/* 🏛️ RE-DESIGNED CLEAN & CRISP HEADER */}
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
+        
+        {/* Top Meta Line: Badges + Role */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-black text-[#F59A00] tracking-wider uppercase">
+            <span className="text-[11px] font-black text-[#F59A00] tracking-wider uppercase">
               EARLY INTERVENTION ENGINE
             </span>
-            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full animate-pulse">
+            <span className="w-1 h-1 bg-slate-300 rounded-full" />
+            <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-extrabold rounded-md border border-red-100 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
               LIVE SYSTEM
             </span>
-            
-            {/* Active Security Role Badge */}
-            <span className={`px-2.5 py-0.5 text-[10px] font-extrabold rounded-md flex items-center gap-1 border uppercase ml-2 ${
-              userRole === 'super-admin' 
-                ? 'bg-purple-100 text-purple-800 border-purple-200' 
-                : userRole === 'admin'
-                ? 'bg-sky-100 text-sky-800 border-sky-200'
-                : 'bg-slate-100 text-slate-700 border-slate-200'
-            }`}>
-              <ShieldCheck className="w-3 h-3" /> Role: {userRole}
-            </span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17365D] tracking-tight mt-1">
-            Intelligent Alert Center
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time proactive cost escalation triggers from MoSPI database
-          </p>
+          <div className={`px-2.5 py-0.5 text-[10px] font-extrabold rounded-md flex items-center gap-1 border uppercase ${
+            userRole === 'super-admin' 
+              ? 'bg-purple-50 text-purple-700 border-purple-200' 
+              : userRole === 'admin'
+              ? 'bg-sky-50 text-sky-700 border-sky-200'
+              : 'bg-slate-100 text-slate-600 border-slate-200'
+          }`}>
+            <ShieldCheck className="w-3 h-3" /> Role: {userRole}
+          </div>
         </div>
 
-        {/* ↔️ STRICT SINGLE HORIZONTAL LINE (NO WRAPPING) */}
-        <div className="flex items-center gap-3 overflow-x-auto flex-nowrap py-1 shrink-0 max-w-full">
-          
-          {/* TOTAL ACTIVE ALERTS BOX */}
-          <div className="bg-[#17365D] px-4 py-2 rounded-2xl text-center text-white shrink-0 shadow-xs transition-all duration-200 hover:scale-105 cursor-default flex items-center justify-center min-h-[48px]">
-            <div>
-              <span className="block text-[9px] font-bold text-[#F59A00] uppercase tracking-wider whitespace-nowrap">
-                TOTAL ACTIVE ALERTS
-              </span>
-              <span className="text-xl font-black leading-none">{counts.total || totalCount}</span>
-            </div>
+        {/* Title + Compact Metric Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17365D] tracking-tight">
+              Intelligent Alert Center
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Real-time proactive cost escalation triggers from MoSPI database
+            </p>
           </div>
 
-          {/* Status Pills Container - Lock in Single Row */}
-          <div className="flex items-center gap-2 bg-slate-50/90 p-1.5 rounded-2xl border border-slate-200/80 shrink-0">
+          {/* 📊 CLEAN & COMPACT METRIC BAR */}
+          <div className="flex items-center gap-1 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shrink-0 self-start lg:self-auto overflow-x-auto max-w-full">
+            
+            {/* Total Active Box */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#17365D] text-white rounded-lg text-xs font-bold shrink-0 transition-transform hover:scale-[1.02]">
+              <span className="text-[10px] text-[#F59A00] uppercase tracking-wider font-extrabold">TOTAL ALERTS</span>
+              <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs font-black">{counts.total || totalCount}</span>
+            </div>
+
+            <div className="h-4 w-[1px] bg-slate-200 my-auto mx-1 shrink-0" />
+
             {/* OPEN */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs shrink-0 whitespace-nowrap transition-all duration-200 hover:scale-105 cursor-default">
-              <span>OPEN</span>
-              <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {counts.open}
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
+              <span className="text-slate-500 text-[11px] font-bold">OPEN</span>
+              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.open}</span>
             </div>
 
             {/* ACKNOWLEDGED */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs shrink-0 whitespace-nowrap transition-all duration-200 hover:scale-105 cursor-default">
-              <span>ACKNOWLEDGED</span>
-              <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {counts.acknowledged}
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
+              <span className="text-slate-500 text-[11px] font-bold">ACKNOWLEDGED</span>
+              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.acknowledged}</span>
             </div>
 
             {/* IN PROGRESS */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs shrink-0 whitespace-nowrap transition-all duration-200 hover:scale-105 cursor-default">
-              <span>IN PROGRESS</span>
-              <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {counts.in_progress}
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
+              <span className="text-slate-500 text-[11px] font-bold">IN PROGRESS</span>
+              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.in_progress}</span>
             </div>
 
             {/* RESOLVED */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 font-bold text-xs shrink-0 whitespace-nowrap transition-all duration-200 hover:scale-105 cursor-default">
-              <span>RESOLVED</span>
-              <span className="px-2 py-0.5 bg-emerald-700 text-white text-[10px] font-extrabold rounded-full">
-                {counts.resolved}
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
+              <span className="text-emerald-800 text-[11px] font-bold">RESOLVED</span>
+              <span className="px-2 py-0.5 bg-emerald-700 text-white text-[11px] font-black rounded-md">{counts.resolved}</span>
             </div>
-          </div>
 
+          </div>
         </div>
+
       </div>
 
       {/* 🔍 Search Bar & Filters */}
@@ -406,7 +399,7 @@ export default function AlertCenterPage() {
                 </div>
               </div>
 
-              {/* 🔒 STATUS CHANGE SECTION (RESTRICTED TO ADMIN & SUPER-ADMIN ONLY) */}
+              {/* 🔒 STATUS CHANGE SECTION (RESTRICTED TO ADMIN & SUPER-ADMIN) */}
               <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="font-semibold text-slate-500 flex items-center gap-2">
                   <span>Current Status:</span>
