@@ -8,12 +8,12 @@ import {
   CheckCircle2,
   Clock,
   ShieldAlert,
-  Filter,
   Search,
   X,
   Sparkles,
   Activity,
-  ArrowRight
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
@@ -37,22 +37,27 @@ export default function AlertCenterPage() {
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
+  
+  // 📄 Pagination for smooth rendering of all 212+ alerts
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
-  // 🔄 Fetch Live Overrun Projects from Supabase to Generate Early Warning Alerts
+  // 🔄 Fetch ALL Overrun Projects from Supabase (Syncs with Sidebar Count)
   useEffect(() => {
     async function loadRealAlerts() {
       try {
         setLoading(true)
+        // Fetches ALL projects where cost_overrun_cr > 0 (Exact 212 records)
         const { data, error } = await supabase
           .from('paimana_projects')
           .select('*')
+          .gt('cost_overrun_cr', 0)
           .order('cost_overrun_cr', { ascending: false })
-          .limit(30)
+          .limit(1000)
 
         if (error) throw error
 
         if (data && data.length > 0) {
-          // Transform real DB records into Early Warning Alerts
           const dynamicAlerts: AlertItem[] = data.map((item, idx) => {
             const overrun = item.cost_overrun_cr || 0
             const origCost = item.original_cost_cr || 1
@@ -70,14 +75,11 @@ export default function AlertCenterPage() {
               id: item.id || `ALERT-${idx + 100}`,
               projectId: `PRJ-${item.id || idx + 101}`,
               projectName: item.project_name || 'Central Infrastructure Project',
-              title: overrun > 0 
-                ? `Cost Overrun Trigger: +₹${overrun} Cr Escalation` 
-                : `Timeline Review Required: ${item.Sector} Sector`,
-              explanation: overrun > 0
-                ? `Project in ${item.State || 'India'} has reported an estimated cost escalation of ₹${overrun} Cr over the original sanctioned budget of ₹${item.original_cost_cr} Cr.`
-                : `Monitoring physical progress for ${item.project_name}. Baseline execution rate requires physical inspection.`,
+              title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
+              explanation: `Project in ${item.State || 'Multi-States'} has reported an estimated cost escalation of ₹${overrun.toLocaleString()} Cr over the original sanctioned budget of ₹${(item.original_cost_cr || 0).toLocaleString()} Cr.`,
               severity: sev,
-              status: idx % 3 === 0 ? 'OPEN' : idx % 3 === 1 ? 'ACKNOWLEDGED' : 'IN_PROGRESS',
+              // Initial Status allocation
+              status: idx % 4 === 0 ? 'OPEN' : idx % 4 === 1 ? 'ACKNOWLEDGED' : idx % 4 === 2 ? 'IN_PROGRESS' : 'OPEN',
               recommendedAction: overrun > 500
                 ? 'Initiate High-Level Inter-Ministerial Committee Review & Expenditure Audit.'
                 : overrun > 100
@@ -87,13 +89,9 @@ export default function AlertCenterPage() {
             }
           })
           setAlerts(dynamicAlerts)
-        } else {
-          // Fallback Default Alerts if database is empty
-          setAlerts(getFallbackAlerts())
         }
       } catch (err) {
-        console.warn('Supabase Alert fetch error, loading fallback alerts', err)
-        setAlerts(getFallbackAlerts())
+        console.warn('Supabase Alert fetch error', err)
       } finally {
         setLoading(false)
       }
@@ -102,14 +100,19 @@ export default function AlertCenterPage() {
     loadRealAlerts()
   }, [])
 
-  // 🛠️ Status Change Trigger Handler
+  // Reset pagination on search or filter change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filterSeverity, filterStatus])
+
+  // 🛠️ Status Change Handler
   const handleStatusChange = (id: string | number, newStatus: AlertStatus) => {
     setAlerts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: newStatus } : a))
     )
   }
 
-  // 🔍 Search & Filter Handler
+  // 🔍 Filter Logic
   const filteredAlerts = alerts.filter((a) => {
     const q = searchQuery.toLowerCase().trim()
     const matchesQuery =
@@ -124,7 +127,15 @@ export default function AlertCenterPage() {
     return matchesQuery && matchesSev && matchesStat
   })
 
-  // Count summaries
+  // 📟 Pagination Slicing
+  const totalPages = Math.ceil(filteredAlerts.length / itemsPerPage)
+  const paginatedAlerts = filteredAlerts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  // 📊 Live Counts calculated over ALL 212+ items
+  const totalAlertCount = alerts.length
   const criticalCount = alerts.filter(a => a.severity === 'CRITICAL').length
   const openCount = alerts.filter(a => a.status === 'OPEN').length
 
@@ -150,22 +161,25 @@ export default function AlertCenterPage() {
           </p>
         </div>
 
-        {/* Header Stats Pills */}
+        {/* 📊 Synchronized Header Stats */}
         <div className="flex items-center gap-3">
+          <div className="bg-[#17365D] border border-[#17365D] px-4 py-2 rounded-xl text-center text-white">
+            <span className="block text-[10px] font-bold text-[#F59A00] uppercase">Total Warnings</span>
+            <span className="text-xl font-black">{totalAlertCount}</span>
+          </div>
           <div className="bg-red-50 border border-red-200 px-4 py-2 rounded-xl text-center">
             <span className="block text-[10px] font-bold text-red-600 uppercase">Critical Triggers</span>
-            <span className="text-lg font-black text-red-700">{criticalCount}</span>
+            <span className="text-xl font-black text-red-700">{criticalCount}</span>
           </div>
           <div className="bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl text-center">
             <span className="block text-[10px] font-bold text-amber-600 uppercase">Open Alerts</span>
-            <span className="text-lg font-black text-amber-700">{openCount}</span>
+            <span className="text-xl font-black text-amber-700">{openCount}</span>
           </div>
         </div>
       </div>
 
       {/* 🔍 Search Bar & Filter Controls */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-        {/* Search Field */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -185,9 +199,7 @@ export default function AlertCenterPage() {
           )}
         </div>
 
-        {/* Filter Pills */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
-          {/* Severity Filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-[#17365D] mr-1">Severity:</span>
             {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
@@ -205,7 +217,6 @@ export default function AlertCenterPage() {
             ))}
           </div>
 
-          {/* Status Filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-[#17365D] mr-1">Status:</span>
             {(['ALL', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
@@ -225,15 +236,15 @@ export default function AlertCenterPage() {
         </div>
       </div>
 
-      {/* 🚨 Alert Feed Cards */}
+      {/* 🚨 Alert Cards */}
       <div className="space-y-4">
         {loading ? (
           <div className="p-12 bg-white rounded-2xl border border-slate-200 text-center space-y-3">
             <Activity className="w-8 h-8 text-[#17365D] animate-spin mx-auto" />
-            <p className="text-sm font-bold text-[#17365D]">Loading PAIMANA Early Warning Feed...</p>
+            <p className="text-sm font-bold text-[#17365D]">Syncing 212+ Live PAIMANA Early Warning Triggers...</p>
           </div>
-        ) : filteredAlerts.length > 0 ? (
-          filteredAlerts.map((alert) => (
+        ) : paginatedAlerts.length > 0 ? (
+          paginatedAlerts.map((alert) => (
             <div
               key={alert.id}
               className={`bg-white rounded-2xl p-5 border-l-8 border border-slate-200/80 shadow-sm hover:shadow-md transition-all space-y-3 ${
@@ -244,7 +255,6 @@ export default function AlertCenterPage() {
                   : 'border-l-emerald-500'
               }`}
             >
-              {/* Card Top Banner */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <span
@@ -269,7 +279,6 @@ export default function AlertCenterPage() {
                 </div>
               </div>
 
-              {/* Title & Explanation */}
               <div>
                 <h3 className="text-base font-bold text-[#17365D] leading-snug">
                   {alert.title}
@@ -279,7 +288,6 @@ export default function AlertCenterPage() {
                 </p>
               </div>
 
-              {/* Recommended Action Callout */}
               <div className="p-3 bg-[#FFF9EF] rounded-xl border border-amber-200/60 text-xs font-semibold text-[#17365D] flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-[#F59A00] shrink-0 mt-0.5" />
                 <div>
@@ -290,7 +298,6 @@ export default function AlertCenterPage() {
                 </div>
               </div>
 
-              {/* Status Actions Bar */}
               <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="font-semibold text-slate-500">
                   Current Status:{' '}
@@ -325,34 +332,33 @@ export default function AlertCenterPage() {
           </div>
         )}
       </div>
+
+      {/* 📟 Pagination Footer */}
+      {!loading && totalPages > 1 && (
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-600">
+          <div>
+            Showing <span className="font-bold text-[#17365D]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#17365D]">{Math.min(currentPage * itemsPerPage, filteredAlerts.length)}</span> of <span className="font-bold text-[#17365D]">{filteredAlerts.length}</span> alerts
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="font-bold text-[#17365D] px-2">Page {currentPage} of {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
-}
-
-// 📦 Fallback Mock Alerts if DB is initial
-function getFallbackAlerts(): AlertItem[] {
-  return [
-    {
-      id: 'ALT-101',
-      projectId: 'PRJ-8012',
-      projectName: 'Udhampur-Srinagar-Baramulla Rail Link',
-      title: 'Cost Escalation Trigger: Tunnel T-49 Geological Delay',
-      explanation: 'Anticipated cost overrun has crossed ₹1,200 Cr limit due to complex Himalayan tunneling conditions.',
-      severity: 'CRITICAL',
-      status: 'OPEN',
-      recommendedAction: 'Convene Joint Task Force with Ministry of Railways and BRO for geological mitigation.',
-      timestamp: '2 hours ago'
-    },
-    {
-      id: 'ALT-102',
-      projectId: 'PRJ-4051',
-      projectName: 'Mumbai Metro Line 3 (Colaba-Bandra-SEEPZ)',
-      title: 'Schedule Delay Warning: Rolling Stock Procurement',
-      explanation: 'Delay in signaling system integration may push commercial COD by 6 months.',
-      severity: 'HIGH',
-      status: 'ACKNOWLEDGED',
-      recommendedAction: 'Accelerate safety clearance with Commissioner of Railway Safety (CRS).',
-      timestamp: '5 hours ago'
-    }
-  ]
 }
