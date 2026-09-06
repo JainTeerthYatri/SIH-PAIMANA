@@ -57,12 +57,12 @@ Return ONLY a valid JSON array without markdown codeblocks:
 
     try {
       const genAI = new GoogleGenerativeAI(activeKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
       const res = await model.generateContent(prompt);
       const text = res.response.text().replace(/```json|```/g, '').trim();
 
       aiResults = JSON.parse(text);
-      providerUsed = `gemini-1.5-flash (${keyLabel})`;
+      providerUsed = `gemini-3.5-flash (${keyLabel})`;
 
       currentGeminiIndex = (keyIdx + 1) % GEMINI_KEYS.length;
       break;
