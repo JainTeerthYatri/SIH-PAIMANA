@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import {
   TrendingUp,
@@ -49,8 +49,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function CostDriversPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const initialProjId = searchParams.get('project') || 'PIM-1001';
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -200,9 +200,11 @@ export default function CostDriversPage() {
           </label>
           <select
             value={selectedProjectId}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-              setSelectedProjectId(e.target.value)
-            }
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+              const newId = e.target.value;
+              setSelectedProjectId(newId);
+              router.push(`/dashboard/cost-drivers?project=${newId}`);
+            }}
             style={{
               padding: '0.6rem 1rem',
               borderRadius: '10px',
