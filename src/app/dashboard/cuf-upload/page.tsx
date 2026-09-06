@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -221,7 +221,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6 animate-fade-in">
       
-      {/* HEADER & TEMPLATE DOWNLOAD */}
+      {/* HEADER & TEMPLATE DOWNLOAD (Static - No hover/spring as requested) */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -244,15 +244,15 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
 
         <button
           onClick={handleDownloadTemplate}
-          className="px-4 py-2.5 bg-white border border-[#F59A00] text-[#F59A00] hover:bg-amber-50 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+          className="px-4 py-2.5 bg-white border border-[#F59A00] text-[#F59A00] hover:bg-amber-50 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer active:scale-95"
         >
           <Download className="w-4 h-4" />
           <span>Download Correct CSV Template</span>
         </button>
       </div>
 
-      {/* REQUIRED COLUMNS BANNER */}
-      <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+      {/* REQUIRED COLUMNS BANNER (Neon Spring Card) */}
+      <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(245,154,0,0.35)] hover:border-[#F59A00]">
         <Info className="w-5 h-5 text-[#F59A00] shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-[#17365D]">Strict Table Schema Required (All columns mandatory):</p>
@@ -268,7 +268,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
 
       {/* ERROR BANNER */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 animate-shake">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 animate-shake transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(239,68,68,0.35)]">
           <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
           <p className="text-xs font-bold text-red-700">{error}</p>
         </div>
@@ -276,14 +276,14 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
 
       {/* SUCCESS BANNER */}
       {successMessage && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3">
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-3 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(16,185,129,0.35)]">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <p className="text-xs font-bold text-emerald-700">{successMessage}</p>
         </div>
       )}
 
-      {/* DRAG & DROP CARD */}
-      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs">
+      {/* DRAG & DROP CARD (Neon Spring Card) */}
+      <div className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(245,154,0,0.4)] hover:border-[#F59A00]">
         <div
           onDragOver={handleDragOver}
           onDrop={handleDrop}
@@ -300,7 +300,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
             htmlFor="cuf-file-input"
             className="cursor-pointer flex flex-col items-center gap-3"
           >
-            <div className="w-16 h-16 rounded-full bg-white text-[#F59A00] flex items-center justify-center shadow-lg shadow-amber-500/10">
+            <div className="w-16 h-16 rounded-full bg-white text-[#F59A00] flex items-center justify-center shadow-lg shadow-amber-500/10 transition-transform duration-300 hover:scale-110">
               <UploadCloud className="w-8 h-8" />
             </div>
 
@@ -322,7 +322,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
 
       {/* PARSING LOADER */}
       {parsing && (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center flex flex-col items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center flex flex-col items-center justify-center transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(245,154,0,0.3)]">
           <Zap className="w-6 h-6 text-[#F59A00] animate-bounce mb-2" />
           <p className="text-xs font-bold text-[#17365D]">Verifying schema headers & matching projects...</p>
         </div>
@@ -331,7 +331,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
       {/* VALIDATION SUMMARY */}
       {summary && !parsing && (
         <div className="space-y-6 animate-fade-in">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(245,154,0,0.35)] hover:border-[#F59A00]">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-[#17365D]">Dataset Validation Summary</h3>
@@ -340,7 +340,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
               <button
                 onClick={handleConfirmImport}
                 disabled={saving || summary.validRows === 0}
-                className="px-5 py-2.5 bg-[#F59A00] hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                className="px-5 py-2.5 bg-[#F59A00] hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer active:scale-95 hover:shadow-[0_0_15px_rgba(245,154,0,0.6)]"
               >
                 <Save className="w-4 h-4" />
                 <span>{saving ? 'Syncing to Supabase...' : `Sync ${summary.validRows} Records to Supabase`}</span>
@@ -348,21 +348,21 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-[#FFF9EF] rounded-xl border border-slate-200">
+              <div className="p-4 bg-[#FFF9EF] rounded-xl border border-slate-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
                 <div className="text-[10px] font-bold text-slate-500 uppercase">TOTAL ROWS PARSED</div>
                 <div className="text-2xl font-black text-[#17365D] mt-1">
                   {summary.totalRows.toLocaleString()}
                 </div>
               </div>
 
-              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
+              <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
                 <div className="text-[10px] font-bold text-emerald-700 uppercase">VALID ROWS READY</div>
                 <div className="text-2xl font-black text-emerald-600 mt-1">
                   {summary.validRows.toLocaleString()}
                 </div>
               </div>
 
-              <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+              <div className="p-4 bg-red-50 rounded-xl border border-red-200 transition-all duration-300 hover:scale-[1.02] hover:shadow-md">
                 <div className="text-[10px] font-bold text-red-700 uppercase">INVALID ROWS DROPPED</div>
                 <div className="text-2xl font-black text-red-600 mt-1">
                   {summary.invalidRows}
@@ -373,7 +373,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
 
           {/* INVALID ROWS BREAKDOWN TABLE */}
           {summary.invalidSamples.length > 0 && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(245,154,0,0.35)] hover:border-[#F59A00]">
               <h4 className="text-sm font-bold text-[#17365D] flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-red-500" />
                 <span>Validation Exception Log (Sample Flagged Rows)</span>
@@ -390,7 +390,7 @@ Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,D
                   </thead>
                   <tbody>
                     {summary.invalidSamples.map((inv, i) => (
-                      <tr key={i} className="border-b border-slate-100">
+                      <tr key={i} className="border-b border-slate-100 transition-colors hover:bg-amber-50/40">
                         <td className="p-3 font-bold text-red-600">Row {inv.row}</td>
                         <td className="p-3 font-semibold text-[#17365D]">{inv.projectName}</td>
                         <td className="p-3 text-slate-500">{inv.reason}</td>
