@@ -92,7 +92,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
       title: 'RISK & PREDICTIVE AI',
       items: [
         { path: '/dashboard/composite-risk', label: 'Composite Risk Score', icon: ShieldAlert },
-        { path: '/dashboard/cost-drivers', label: 'Cost Driver Analysis', icon: TrendingUp },
         { path: '/dashboard/chatbot', label: 'PAIMANA AI Assistant', icon: Bot },
         { path: '/dashboard/benchmarking', label: 'Model Benchmarking', icon: Cpu }
       ]
