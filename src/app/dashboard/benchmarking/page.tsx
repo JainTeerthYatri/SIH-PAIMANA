@@ -59,13 +59,14 @@ export default function BenchmarkingPage() {
         setError(null)
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        // Updated to use the publishable key name from your Vercel env
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-        if (!supabaseUrl || !supabaseAnonKey) {
-          throw new Error('Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY) are missing in Vercel.')
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error('Supabase environment variables are missing in Vercel. Please check your Vercel settings.')
         }
 
-        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+        const supabase = createClient(supabaseUrl, supabaseKey)
 
         // Direct fetch from Supabase `model_benchmarks` table
         const { data, error: dbError } = await supabase
