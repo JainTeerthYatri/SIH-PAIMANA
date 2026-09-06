@@ -36,22 +36,23 @@ export default function AlertCenterPage() {
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
   
-  // 📄 Database-Level Pagination
+  // 📄 Database Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 15
 
-  // 📊 Status Counts State (OPEN, ACKNOWLEDGED, IN_PROGRESS, RESOLVED)
-  const [statusCounts, setStatusCounts] = useState({
+  // 📊 Consolidated Live Counts State
+  const [counts, setCounts] = useState({
+    total: 0,
     open: 0,
     acknowledged: 0,
     in_progress: 0,
     resolved: 0
   })
 
-  // 🔄 Fetch Status Counts for Pills
+  // 🔄 Fetch Exact Live Status Breakdown & Total
   useEffect(() => {
-    async function fetchStatusSummary() {
+    async function fetchCountsSummary() {
       try {
         const { data, error } = await supabase
           .from('paimana_projects')
@@ -69,7 +70,8 @@ export default function AlertCenterPage() {
             else res++
           })
 
-          setStatusCounts({
+          setCounts({
+            total: data.length,
             open: opn,
             acknowledged: ack,
             in_progress: inp,
@@ -77,11 +79,11 @@ export default function AlertCenterPage() {
           })
         }
       } catch (err) {
-        console.warn('Error fetching status counts:', err)
+        console.warn('Error fetching counts summary:', err)
       }
     }
 
-    fetchStatusSummary()
+    fetchCountsSummary()
   }, [])
 
   // 🔄 Fetch Paginated Alerts List
@@ -163,7 +165,7 @@ export default function AlertCenterPage() {
     setCurrentPage(1)
   }
 
-  // Client Filter on current paginated set
+  // Client Filter
   const filteredAlerts = alerts.filter((a) => {
     const matchesSev = filterSeverity === 'ALL' || a.severity === filterSeverity
     const matchesStat = filterStatus === 'ALL' || a.status === filterStatus
@@ -175,7 +177,7 @@ export default function AlertCenterPage() {
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
-      {/* 🏛️ Page Title Header & Status Pills with Numbers */}
+      {/* 🏛️ Page Title & Side-By-Side Stats Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
@@ -194,51 +196,54 @@ export default function AlertCenterPage() {
           </p>
         </div>
 
-        {/* 🔘 STATUS PILLS WITH NUMBERS DISPLAYED ON TOP / INSIDE */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-slate-50/80 p-2 rounded-2xl border border-slate-200/80">
-            {/* OPEN Pill */}
-            <div className="relative flex items-center gap-2 px-3.5 py-1.5 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+        {/* ↔️ SIDE-BY-SIDE SIDE BAR (Total Active + Status Pills) */}
+        <div className="flex flex-wrap items-center gap-3">
+          
+          {/* Status Pills Container */}
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50/90 p-1.5 rounded-2xl border border-slate-200/80">
+            {/* OPEN */}
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
               <span>OPEN</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {statusCounts.open}
+                {counts.open}
               </span>
             </div>
 
-            {/* ACKNOWLEDGED Pill */}
-            <div className="relative flex items-center gap-2 px-3.5 py-1.5 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+            {/* ACKNOWLEDGED */}
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
               <span>ACKNOWLEDGED</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {statusCounts.acknowledged}
+                {counts.acknowledged}
               </span>
             </div>
 
-            {/* IN PROGRESS Pill */}
-            <div className="relative flex items-center gap-2 px-3.5 py-1.5 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+            {/* IN PROGRESS */}
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
               <span>IN PROGRESS</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
-                {statusCounts.in_progress}
+                {counts.in_progress}
               </span>
             </div>
 
-            {/* RESOLVED Pill */}
-            <div className="relative flex items-center gap-2 px-3.5 py-1.5 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 font-bold text-xs">
+            {/* RESOLVED */}
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 font-bold text-xs">
               <span>RESOLVED</span>
               <span className="px-2 py-0.5 bg-emerald-700 text-white text-[10px] font-extrabold rounded-full">
-                {statusCounts.resolved}
+                {counts.resolved}
               </span>
             </div>
           </div>
 
           {/* TOTAL ACTIVE ALERTS BOX */}
-          <div className="bg-[#17365D] border border-[#17365D] px-4 py-2 rounded-2xl text-center text-white shadow-xs">
-            <span className="block text-[10px] font-bold text-[#F59A00] uppercase">Total Active Alerts</span>
-            <span className="text-xl font-black">{totalCount}</span>
+          <div className="bg-[#17365D] px-4 py-2.5 rounded-2xl text-center text-white min-w-[120px] shadow-xs">
+            <span className="block text-[9px] font-bold text-[#F59A00] uppercase tracking-wider">TOTAL ACTIVE ALERTS</span>
+            <span className="text-xl font-black">{counts.total || totalCount}</span>
           </div>
+
         </div>
       </div>
 
-      {/* 🔍 Search Bar & Clean Filter Controls (Without Extra 0 Badges) */}
+      {/* 🔍 Search Bar & Filters */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -259,7 +264,7 @@ export default function AlertCenterPage() {
           )}
         </div>
 
-        {/* Clean Filters */}
+        {/* Filters */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-[#17365D] mr-1">Severity:</span>
@@ -395,7 +400,7 @@ export default function AlertCenterPage() {
         )}
       </div>
 
-      {/* 📟 Fast Pagination Footer */}
+      {/* 📟 Pagination Footer */}
       {!loading && totalCount > itemsPerPage && (
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-600">
           <div>
