@@ -41,7 +41,7 @@ export default function AlertCenterPage() {
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 15
 
-  // 📊 Consolidated Live Counts State
+  // 📊 Live Counts State
   const [counts, setCounts] = useState({
     total: 0,
     open: 0,
@@ -50,7 +50,7 @@ export default function AlertCenterPage() {
     resolved: 0
   })
 
-  // 🔄 Fetch Exact Live Status Breakdown & Total
+  // 🔄 Fetch Live Status Breakdown
   useEffect(() => {
     async function fetchCountsSummary() {
       try {
@@ -178,7 +178,7 @@ export default function AlertCenterPage() {
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
       {/* 🏛️ Page Title & Side-By-Side Stats Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-[#F59A00] tracking-wider uppercase">
@@ -196,13 +196,13 @@ export default function AlertCenterPage() {
           </p>
         </div>
 
-        {/* ↔️ SIDE-BY-SIDE SIDE BAR (Total Active + Status Pills) */}
+        {/* ↔️ SIDE-BY-SIDE STATS & STATUS PILLS WITH SPRING HOVER */}
         <div className="flex flex-wrap items-center gap-3">
           
           {/* Status Pills Container */}
           <div className="flex flex-wrap items-center gap-2 bg-slate-50/90 p-1.5 rounded-2xl border border-slate-200/80">
             {/* OPEN */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:shadow-xs cursor-default">
               <span>OPEN</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
                 {counts.open}
@@ -210,7 +210,7 @@ export default function AlertCenterPage() {
             </div>
 
             {/* ACKNOWLEDGED */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:shadow-xs cursor-default">
               <span>ACKNOWLEDGED</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
                 {counts.acknowledged}
@@ -218,7 +218,7 @@ export default function AlertCenterPage() {
             </div>
 
             {/* IN PROGRESS */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-sky-50 text-[#17365D] rounded-xl border border-sky-100 font-bold text-xs transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:shadow-xs cursor-default">
               <span>IN PROGRESS</span>
               <span className="px-2 py-0.5 bg-[#17365D] text-white text-[10px] font-extrabold rounded-full">
                 {counts.in_progress}
@@ -226,7 +226,7 @@ export default function AlertCenterPage() {
             </div>
 
             {/* RESOLVED */}
-            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 font-bold text-xs">
+            <div className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-200 font-bold text-xs transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:shadow-xs cursor-default">
               <span>RESOLVED</span>
               <span className="px-2 py-0.5 bg-emerald-700 text-white text-[10px] font-extrabold rounded-full">
                 {counts.resolved}
@@ -235,7 +235,7 @@ export default function AlertCenterPage() {
           </div>
 
           {/* TOTAL ACTIVE ALERTS BOX */}
-          <div className="bg-[#17365D] px-4 py-2.5 rounded-2xl text-center text-white min-w-[120px] shadow-xs">
+          <div className="bg-[#17365D] px-4 py-2.5 rounded-2xl text-center text-white min-w-[120px] shadow-xs transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:shadow-md cursor-default">
             <span className="block text-[9px] font-bold text-[#F59A00] uppercase tracking-wider">TOTAL ACTIVE ALERTS</span>
             <span className="text-xl font-black">{counts.total || totalCount}</span>
           </div>
@@ -243,8 +243,8 @@ export default function AlertCenterPage() {
         </div>
       </div>
 
-      {/* 🔍 Search Bar & Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      {/* 🔍 Search Bar & Springy Filters */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all duration-300 space-y-4">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -252,19 +252,19 @@ export default function AlertCenterPage() {
             placeholder="Search alerts by project name or state..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-[#FFF9EF] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]/20 focus:border-[#F59A00] text-sm font-medium transition-all"
+            className="w-full pl-10 pr-10 py-2.5 bg-[#FFF9EF] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]/30 focus:border-[#F59A00] text-sm font-medium transition-all duration-200"
           />
           {searchQuery && (
             <button
               onClick={() => handleSearchChange('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-transform duration-200 hover:scale-125"
             >
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
 
-        {/* Filters */}
+        {/* Dynamic Springy Filter Buttons */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="font-bold text-[#17365D] mr-1">Severity:</span>
@@ -272,10 +272,10 @@ export default function AlertCenterPage() {
               <button
                 key={sev}
                 onClick={() => setFilterSeverity(sev)}
-                className={`px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                   filterSeverity === sev
-                    ? 'bg-[#17365D] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#17365D] text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 {sev}
@@ -289,10 +289,10 @@ export default function AlertCenterPage() {
               <button
                 key={st}
                 onClick={() => setFilterStatus(st)}
-                className={`px-3.5 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                   filterStatus === st
-                    ? 'bg-[#F59A00] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-[#F59A00] text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 {st.replace('_', ' ')}
@@ -302,7 +302,7 @@ export default function AlertCenterPage() {
         </div>
       </div>
 
-      {/* 🚨 Alert Cards List */}
+      {/* 🚨 Alert Cards List with Bouncy/Springy Lift on Hover */}
       <div className="space-y-4">
         {loading ? (
           <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
@@ -313,7 +313,7 @@ export default function AlertCenterPage() {
           filteredAlerts.map((alert) => (
             <div
               key={alert.id}
-              className={`bg-white rounded-2xl p-5 border-l-8 border border-slate-200/80 shadow-sm hover:shadow-md transition-all space-y-3 ${
+              className={`bg-white rounded-2xl p-5 border-l-8 border border-slate-200/80 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.005] hover:shadow-xl space-y-3 ${
                 alert.severity === 'CRITICAL'
                   ? 'border-l-red-600'
                   : alert.severity === 'HIGH'
@@ -324,7 +324,7 @@ export default function AlertCenterPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
                   <span
-                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-transform duration-200 hover:scale-105 ${
                       alert.severity === 'CRITICAL'
                         ? 'bg-red-100 text-red-700 border border-red-200'
                         : alert.severity === 'HIGH'
@@ -354,7 +354,7 @@ export default function AlertCenterPage() {
                 </p>
               </div>
 
-              <div className="p-3 bg-[#FFF9EF] rounded-xl border border-amber-200/60 text-xs font-semibold text-[#17365D] flex items-start gap-2">
+              <div className="p-3 bg-[#FFF9EF] rounded-xl border border-amber-200/60 text-xs font-semibold text-[#17365D] flex items-start gap-2 transition-all duration-200 hover:bg-amber-50/80">
                 <Sparkles className="w-4 h-4 text-[#F59A00] shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold text-[#F59A00] uppercase block text-[10px]">
@@ -367,7 +367,7 @@ export default function AlertCenterPage() {
               <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="font-semibold text-slate-500">
                   Current Status:{' '}
-                  <span className="font-extrabold text-[#17365D] uppercase px-2 py-0.5 bg-slate-100 rounded">
+                  <span className="font-extrabold text-[#17365D] uppercase px-2 py-0.5 bg-slate-100 rounded inline-block transition-transform duration-200 hover:scale-105">
                     {alert.status.replace('_', ' ')}
                   </span>
                 </div>
@@ -379,7 +379,7 @@ export default function AlertCenterPage() {
                       onClick={() => {
                         setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: st } : a))
                       }}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                         alert.status === st
                           ? 'bg-[#F59A00] text-white shadow-xs'
                           : 'bg-slate-100 text-[#17365D] hover:bg-slate-200'
@@ -400,9 +400,9 @@ export default function AlertCenterPage() {
         )}
       </div>
 
-      {/* 📟 Pagination Footer */}
+      {/* 📟 Springy Pagination Footer */}
       {!loading && totalCount > itemsPerPage && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-600">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-600 shadow-xs">
           <div>
             Showing <span className="font-bold text-[#17365D]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#17365D]">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of <span className="font-bold text-[#17365D]">{totalCount}</span> total alerts
           </div>
@@ -411,7 +411,7 @@ export default function AlertCenterPage() {
             <button
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1 transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:border-[#17365D] hover:text-[#17365D]"
             >
               <ChevronLeft className="w-4 h-4" /> Prev
             </button>
@@ -419,7 +419,7 @@ export default function AlertCenterPage() {
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1 transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:border-[#17365D] hover:text-[#17365D]"
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
