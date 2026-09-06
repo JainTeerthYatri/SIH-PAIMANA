@@ -92,20 +92,24 @@ export default function AlertCenterPage() {
         .select('project_id, status')
 
       if (stError) {
-        console.warn('Status table read warning (will default to OPEN):', stError)
+        console.warn('Status table read notice:', stError)
       }
 
       // Map status table entries to dictionary
-      const statusMap = new Map<string | number, AlertStatus>()
+      const statusMap = new Map<string, AlertStatus>()
       if (statusData) {
         statusData.forEach((st) => {
-          statusMap.set(st.project_id, st.status as AlertStatus)
+          if (st.project_id) {
+            statusMap.set(String(st.project_id), st.status as AlertStatus)
+          }
         })
       }
 
       if (projectsData) {
-        // Build all dynamic alert items
+        // Build dynamic alert items with strict ID fallback
         const allAlerts: AlertItem[] = projectsData.map((item, idx) => {
+          // 🛡️ Fail-safe ID Extraction
+          const rawId = item.id ?? item.ID ?? item.project_id ?? item.s_no ?? `PRJ-${idx + 1}`
           const overrun = item.cost_overrun_cr || 0
           const origCost = item.original_cost_cr || 1
 
@@ -119,11 +123,11 @@ export default function AlertCenterPage() {
           }
 
           // Fetch status from new table or default to OPEN
-          const currentStatus: AlertStatus = statusMap.get(item.id) || 'OPEN'
+          const currentStatus: AlertStatus = statusMap.get(String(rawId)) || 'OPEN'
 
           return {
-            id: item.id,
-            projectId: `PRJ-${item.id}`,
+            id: rawId,
+            projectId: `PRJ-${rawId}`,
             projectName: item.project_name || 'Central Infrastructure Project',
             title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
             explanation: `Project in ${item.State || 'Multi-States'} reported ₹${overrun.toLocaleString()} Cr cost overrun over ₹${(item.original_cost_cr || 0).toLocaleString()} Cr sanctioned budget.`,
@@ -138,7 +142,7 @@ export default function AlertCenterPage() {
           }
         })
 
-        // 📊 Accurately Calculate Header Metric Summary
+        // 📊 Header Metric Aggregation
         let opn = 0, ack = 0, inp = 0, res = 0
         allAlerts.forEach(a => {
           if (a.status === 'OPEN') opn++
@@ -155,7 +159,7 @@ export default function AlertCenterPage() {
           resolved: res
         })
 
-        // Filter Logic
+        // Filters
         let filtered = allAlerts
 
         if (searchQuery.trim()) {
@@ -176,7 +180,7 @@ export default function AlertCenterPage() {
 
         setTotalCount(filtered.length)
 
-        // Paginate client side
+        // Paginate
         const from = (currentPage - 1) * itemsPerPage
         const paginated = filtered.slice(from, from + itemsPerPage)
 
@@ -193,7 +197,6 @@ export default function AlertCenterPage() {
   useEffect(() => {
     fetchAlertsAndCounts()
 
-    // ⚡ Realtime subscription ONLY on the isolated 'alert_statuses' table
     const channel = supabase
       .channel('realtime_alert_statuses')
       .on(
@@ -215,18 +218,29 @@ export default function AlertCenterPage() {
     setCurrentPage(1)
   }
 
-  // ⚡ Status Save in Isolated Nayi Table (`alert_statuses`)
+  // ⚡ Status Save with Strict project_id Check
   const handleStatusUpdate = async (alertId: string | number, newStatus: AlertStatus) => {
     if (!canChangeStatus) return
 
-    // Optimistic UI update
-    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: newStatus } : a))
+    if (alertId === undefined || alertId === null || alertId === '') {
+      console.error('Cannot update status: Invalid alertId provided', alertId)
+      return
+    }
 
-    // Upsert into isolated alert_statuses table
+    const stringifiedId = String(alertId)
+
+    // Optimistic UI update
+    setAlerts(prev => prev.map(a => String(a.id) === stringifiedId ? { ...a, status: newStatus } : a))
+
+    // Safe Upsert with Non-null project_id
     const { error } = await supabase
       .from('alert_statuses')
       .upsert(
-        { project_id: alertId, status: newStatus, updated_at: new Date().toISOString() },
+        { 
+          project_id: stringifiedId, 
+          status: newStatus, 
+          updated_at: new Date().toISOString() 
+        },
         { onConflict: 'project_id' }
       )
 
@@ -244,7 +258,7 @@ export default function AlertCenterPage() {
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
-      {/* 🏛️ RE-DESIGNED CLEAN HEADER */}
+      {/* 🏛️ HEADER */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         
         {/* Top Meta Line */}
@@ -282,7 +296,7 @@ export default function AlertCenterPage() {
             </p>
           </div>
 
-          {/* 📊 REALTIME ACCURATE METRIC BAR */}
+          {/* 📊 ACCURATE METRIC BAR */}
           <div className="flex items-center gap-1 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shrink-0 self-start lg:self-auto overflow-x-auto max-w-full">
             
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#17365D] text-white rounded-lg text-xs font-bold shrink-0 transition-transform hover:scale-[1.02]">
