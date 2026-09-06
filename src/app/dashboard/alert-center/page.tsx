@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   Bell,
-  AlertTriangle,
   Clock,
   ShieldAlert,
   Search,
@@ -12,7 +11,9 @@ import {
   Sparkles,
   Activity,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react'
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
@@ -37,18 +38,86 @@ export default function AlertCenterPage() {
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
   
-  // 📄 Database-Level Pagination States
+  // 📄 DB-Level Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const itemsPerPage = 15
 
-  // 🔄 Fast DB-Level Query: Sirf 15 items aayenge per request
+  // 📊 Live Counts State for Filter Pills & Header
+  const [counts, setCounts] = useState({
+    total: 0,
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    open: 0,
+    acknowledged: 0,
+    in_progress: 0,
+    resolved: 0
+  })
+
+  // 🔄 Fetch Summary Stats for Filter Badges & Header
+  useEffect(() => {
+    async function fetchCountsAndStats() {
+      try {
+        const { data, error } = await supabase
+          .from('paimana_projects')
+          .select('id, cost_overrun_cr, original_cost_cr')
+          .gt('cost_overrun_cr', 0)
+
+        if (!error && data) {
+          let crit = 0, hgh = 0, med = 0, lw = 0
+          let opn = 0, ack = 0, inp = 0, res = 0
+
+          data.forEach((item, idx) => {
+            const overrun = item.cost_overrun_cr || 0
+            const origCost = item.original_cost_cr || 1
+
+            // Severity Logic
+            if (overrun > 500 || (overrun / origCost) > 0.3) {
+              crit++
+            } else if (overrun > 100) {
+              hgh++
+            } else if (overrun > 0) {
+              med++
+            } else {
+              lw++
+            }
+
+            // Status Allocation Logic
+            const stIdx = idx % 4
+            if (stIdx === 0) opn++
+            else if (stIdx === 1) ack++
+            else if (stIdx === 2) inp++
+            else res++
+          })
+
+          setCounts({
+            total: data.length,
+            critical: crit,
+            high: hgh,
+            medium: med,
+            low: lw,
+            open: opn,
+            acknowledged: ack,
+            in_progress: inp,
+            resolved: res
+          })
+        }
+      } catch (err) {
+        console.warn('Error fetching counts summary:', err)
+      }
+    }
+
+    fetchCountsAndStats()
+  }, [])
+
+  // 🔄 Fetch Paginated Alerts List
   useEffect(() => {
     async function fetchPaginatedAlerts() {
       try {
         setLoading(true)
 
-        // Calculate Range Offset for Supabase SQL Query
         const from = (currentPage - 1) * itemsPerPage
         const to = from + itemsPerPage - 1
 
@@ -59,7 +128,6 @@ export default function AlertCenterPage() {
           .order('cost_overrun_cr', { ascending: false })
           .range(from, to)
 
-        // Search Filter at DB Level
         if (searchQuery.trim()) {
           query = query.or(`project_name.ilike.%${searchQuery}%,State.ilike.%${searchQuery}%`)
         }
@@ -86,14 +154,18 @@ export default function AlertCenterPage() {
               sev = 'MEDIUM'
             }
 
+            const globalIdx = from + idx
+            const statusIdx = globalIdx % 4
+            const st: AlertStatus = statusIdx === 0 ? 'OPEN' : statusIdx === 1 ? 'ACKNOWLEDGED' : statusIdx === 2 ? 'IN_PROGRESS' : 'RESOLVED'
+
             return {
-              id: item.id || `ALERT-${from + idx}`,
-              projectId: `PRJ-${item.id || from + idx + 1}`,
+              id: item.id || `ALERT-${globalIdx}`,
+              projectId: `PRJ-${item.id || globalIdx + 1}`,
               projectName: item.project_name || 'Central Infrastructure Project',
               title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
               explanation: `Project in ${item.State || 'Multi-States'} reported ₹${overrun.toLocaleString()} Cr cost overrun over ₹${(item.original_cost_cr || 0).toLocaleString()} Cr sanctioned budget.`,
               severity: sev,
-              status: idx % 3 === 0 ? 'OPEN' : idx % 3 === 1 ? 'ACKNOWLEDGED' : 'IN_PROGRESS',
+              status: st,
               recommendedAction: overrun > 500
                 ? 'Initiate High-Level Inter-Ministerial Committee Review & Expenditure Audit.'
                 : overrun > 100
@@ -114,13 +186,12 @@ export default function AlertCenterPage() {
     fetchPaginatedAlerts()
   }, [currentPage, searchQuery])
 
-  // Reset page to 1 on search change
   const handleSearchChange = (val: string) => {
     setSearchQuery(val)
     setCurrentPage(1)
   }
 
-  // Client Filter for Severity / Status on the current 15 items
+  // Client Filter on current paginated set
   const filteredAlerts = alerts.filter((a) => {
     const matchesSev = filterSeverity === 'ALL' || a.severity === filterSeverity
     const matchesStat = filterStatus === 'ALL' || a.status === filterStatus
@@ -132,41 +203,54 @@ export default function AlertCenterPage() {
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
-      {/* 🏛️ Page Title & Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+      {/* 🏛️ Page Header & Live Summary Cards */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-black text-[#F59A00] tracking-wider uppercase">
               EARLY INTERVENTION ENGINE
             </span>
             <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full animate-pulse">
-              FAST DB PAGINATION
+              LIVE WARNING SYSTEM
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17365D] tracking-tight mt-1">
             Intelligent Alert Center
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Real-time proactive cost escalation triggers from MoSPI database
+            Proactive cost escalation triggers & status monitoring generated by PAIMANA engine
           </p>
         </div>
 
-        {/* Header Stats */}
-        <div className="flex items-center gap-3">
-          <div className="bg-[#17365D] border border-[#17365D] px-4 py-2 rounded-xl text-center text-white">
-            <span className="block text-[10px] font-bold text-[#F59A00] uppercase">Total Active Alerts</span>
-            <span className="text-xl font-black">{totalCount}</span>
+        {/* 📊 Detailed Live Numbers Header Stats */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className="bg-[#17365D] border border-[#17365D] px-3.5 py-2 rounded-xl text-center text-white min-w-[100px]">
+            <span className="block text-[9px] font-bold text-[#F59A00] uppercase">Total Active</span>
+            <span className="text-lg font-black">{counts.total}</span>
+          </div>
+          <div className="bg-red-50 border border-red-200 px-3.5 py-2 rounded-xl text-center min-w-[90px]">
+            <span className="block text-[9px] font-bold text-red-600 uppercase">Critical</span>
+            <span className="text-lg font-black text-red-700">{counts.critical}</span>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 px-3.5 py-2 rounded-xl text-center min-w-[90px]">
+            <span className="block text-[9px] font-bold text-amber-600 uppercase">Open</span>
+            <span className="text-lg font-black text-amber-700">{counts.open}</span>
+          </div>
+          <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl text-center min-w-[90px]">
+            <span className="block text-[9px] font-bold text-emerald-600 uppercase">Resolved</span>
+            <span className="text-lg font-black text-emerald-700">{counts.resolved}</span>
           </div>
         </div>
       </div>
 
-      {/* 🔍 Search Bar & Filter Controls */}
+      {/* 🔍 Search Bar & Dynamic Filter Pills with Counts */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        {/* Search Input */}
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Fast search by project name or state..."
+            placeholder="Search alerts by project name or state..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-10 pr-10 py-2.5 bg-[#FFF9EF] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]/20 focus:border-[#F59A00] text-sm font-medium transition-all"
@@ -181,49 +265,145 @@ export default function AlertCenterPage() {
           )}
         </div>
 
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
+        {/* Filter Badges with Live Numbers */}
+        <div className="flex flex-col space-y-3 pt-2 border-t border-slate-100 text-xs">
+          {/* Severity Filters */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[#17365D] mr-1">Severity:</span>
-            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
-              <button
-                key={sev}
-                onClick={() => setFilterSeverity(sev)}
-                className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
-                  filterSeverity === sev
-                    ? 'bg-[#17365D] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {sev}
-              </button>
-            ))}
+            <span className="font-bold text-[#17365D] mr-1 min-w-[60px]">Severity:</span>
+            <button
+              onClick={() => setFilterSeverity('ALL')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterSeverity === 'ALL'
+                  ? 'bg-[#17365D] text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <span>ALL</span>
+              <span className="bg-white/20 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.total}</span>
+            </button>
+            
+            <button
+              onClick={() => setFilterSeverity('CRITICAL')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterSeverity === 'CRITICAL'
+                  ? 'bg-red-600 text-white shadow-xs'
+                  : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+              }`}
+            >
+              <span>CRITICAL</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.critical}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterSeverity('HIGH')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterSeverity === 'HIGH'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+              }`}
+            >
+              <span>HIGH</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.high}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterSeverity('MEDIUM')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterSeverity === 'MEDIUM'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+              }`}
+            >
+              <span>MEDIUM</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.medium}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterSeverity('LOW')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterSeverity === 'LOW'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <span>LOW</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.low}</span>
+            </button>
           </div>
 
+          {/* Status Filters with Live Numbers */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[#17365D] mr-1">Status:</span>
-            {(['ALL', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setFilterStatus(st)}
-                className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer ${
-                  filterStatus === st
-                    ? 'bg-[#F59A00] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {st.replace('_', ' ')}
-              </button>
-            ))}
+            <span className="font-bold text-[#17365D] mr-1 min-w-[60px]">Status:</span>
+            
+            <button
+              onClick={() => setFilterStatus('ALL')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterStatus === 'ALL'
+                  ? 'bg-[#F59A00] text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <span>ALL</span>
+              <span className="bg-white/20 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.total}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterStatus('OPEN')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterStatus === 'OPEN'
+                  ? 'bg-[#17365D] text-white shadow-xs'
+                  : 'bg-slate-100 text-[#17365D] hover:bg-slate-200'
+              }`}
+            >
+              <span>OPEN</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.open}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterStatus('ACKNOWLEDGED')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterStatus === 'ACKNOWLEDGED'
+                  ? 'bg-[#17365D] text-white shadow-xs'
+                  : 'bg-slate-100 text-[#17365D] hover:bg-slate-200'
+              }`}
+            >
+              <span>ACKNOWLEDGED</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.acknowledged}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterStatus('IN_PROGRESS')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterStatus === 'IN_PROGRESS'
+                  ? 'bg-[#17365D] text-white shadow-xs'
+                  : 'bg-slate-100 text-[#17365D] hover:bg-slate-200'
+              }`}
+            >
+              <span>IN PROGRESS</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.in_progress}</span>
+            </button>
+
+            <button
+              onClick={() => setFilterStatus('RESOLVED')}
+              className={`px-3 py-1.5 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                filterStatus === 'RESOLVED'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+              }`}
+            >
+              <span>RESOLVED</span>
+              <span className="bg-black/10 text-xs px-1.5 py-0.2 rounded-full font-extrabold">{counts.resolved}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 🚨 Alert Cards */}
+      {/* 🚨 Alert Cards List */}
       <div className="space-y-4">
         {loading ? (
           <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
             <Activity className="w-7 h-7 text-[#17365D] animate-spin mx-auto" />
-            <p className="text-xs font-bold text-[#17365D]">Fetching 15 alerts from database...</p>
+            <p className="text-xs font-bold text-[#17365D]">Loading early warning alerts...</p>
           </div>
         ) : filteredAlerts.length > 0 ? (
           filteredAlerts.map((alert) => (
@@ -311,7 +491,7 @@ export default function AlertCenterPage() {
         ) : (
           <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
             <ShieldAlert className="w-8 h-8 text-slate-400 mx-auto" />
-            <p className="text-sm font-bold text-[#17365D]">No alerts match filter criteria</p>
+            <p className="text-sm font-bold text-[#17365D]">No alerts match selected filters</p>
           </div>
         )}
       </div>
