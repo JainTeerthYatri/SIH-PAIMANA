@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -31,8 +31,9 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname()
   const [activeAlertCount, setActiveAlertCount] = useState<number>(0)
+  const sidebarRef = useRef<HTMLElement>(null)
 
-  // 🔄 Direct Real-Time Fetch for Alert Count
+  // 🔄 Real-time Active Warnings Count Fetch
   useEffect(() => {
     async function fetchAlertCount() {
       try {
@@ -51,7 +52,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
 
     fetchAlertCount()
 
-    // 🔔 Realtime listener for live count updates
     const channel = supabase
       .channel('sidebar_alert_counter')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'paimana_projects' }, () => {
@@ -63,6 +63,22 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
       supabase.removeChannel(channel)
     }
   }, [])
+
+  // ⌨️ Mouse Hover Keyboard Arrow Key Scrolling Listener
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (!sidebarRef.current) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      sidebarRef.current.scrollBy({ top: 60, behavior: 'smooth' })
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      sidebarRef.current.scrollBy({ top: -60, behavior: 'smooth' })
+    }
+  }
+
+  const handleMouseEnter = () => {
+    sidebarRef.current?.focus({ preventScroll: true })
+  }
 
   const navGroups = [
     {
@@ -116,7 +132,11 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
 
   return (
     <aside 
-      className={`fixed left-0 top-0 h-screen bg-[#17365D] text-white transition-all duration-300 z-50 flex flex-col shadow-[4px_0_20px_rgba(13,33,59,0.15)] overflow-y-auto overflow-x-hidden ${
+      ref={sidebarRef}
+      tabIndex={0}
+      onMouseEnter={handleMouseEnter}
+      onKeyDown={handleKeyDown}
+      className={`fixed left-0 top-0 h-screen bg-[#17365D] text-white transition-all duration-300 z-50 flex flex-col shadow-[4px_0_20px_rgba(13,33,59,0.15)] overflow-y-auto overflow-x-hidden outline-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${
         isOpen ? 'w-[265px]' : 'w-20'
       }`}
     >
