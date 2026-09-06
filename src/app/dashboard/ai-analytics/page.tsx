@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import { BarChart3, TrendingUp, MapPin, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -17,11 +18,16 @@ import {
   Legend,
 } from 'recharts';
 
+// Initialize Supabase Client (Update keys or import your existing client if configured globally)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 interface Project {
-  id?: string | number;
-  state?: string;
-  originalCost?: number;
-  revisedCost?: number;
+  project_name?: string;
+  State?: string;
+  original_cost_cr?: number;
+  anticipated_cost_cr?: number;
   [key: string]: unknown;
 }
 
@@ -40,35 +46,31 @@ interface HistoricalTrend {
 function AnalyticsContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get('search') || '';
-  
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    async function fetchProjects() {
+    async function fetchSupabaseProjects() {
       try {
         setLoading(true);
-        const res = await fetch('/api/projects/drivers');
-        const data = await res.json();
-        
-        if (data) {
-          const rawList = Array.isArray(data) ? data : (data.projects || data.data || []);
-          const mapped = rawList.map((p: any) => ({
-            id: p.id || p._id,
-            state: p.state || p.stateName || 'Unknown',
-            originalCost: Number(p.originalCost || p.costOriginal || 0),
-            revisedCost: Number(p.anticipatedCost || p.revisedCost || p.costRevised || 0),
-          }));
-          setProjects(mapped);
+        const { data, error } = await supabase
+          .from('paimana_projects')
+          .select('*');
+
+        if (error) {
+          console.error('Supabase fetch error:', error);
+        } else if (data) {
+          setProjects(data);
         }
       } catch (err) {
-        console.error('Failed to load analytics projects:', err);
+        console.error('Failed to load projects from Supabase:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    fetchProjects();
+    fetchSupabaseProjects();
   }, []);
 
   const filteredProjects = searchQuery
@@ -82,8 +84,10 @@ function AnalyticsContent() {
   const stateMap: Record<string, StateAggregation> = {};
 
   filteredProjects.forEach((p) => {
-    const st = p.state || 'Unknown';
-    const overrun = Math.max(0, (p.revisedCost || 0) - (p.originalCost || 0));
+    const st = p.State || 'Unknown';
+    const original = Number(p.original_cost_cr || 0);
+    const revised = Number(p.anticipated_cost_cr || 0);
+    const overrun = Math.max(0, revised - original);
 
     if (!stateMap[st]) {
       stateMap[st] = { state: st, projects: 0, costEscalationCr: 0 };
@@ -104,13 +108,13 @@ function AnalyticsContent() {
   ];
 
   if (loading) {
-    return <div style={{ padding: '3rem', textAlign: 'center', fontWeight: 700, color: '#17365D' }}>Loading Analytics Data...</div>;
+    return <div style={{ padding: '3rem', textAlign: 'center', fontWeight: 700, color: '#17365D' }}>Loading Analytics from Supabase...</div>;
   }
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Header Card with proper gapping and styling */}
+      {/* Header Card */}
       <motion.div 
         className="card-paimana"
         whileHover={{ scale: 1.008, y: -2 }}
@@ -133,7 +137,7 @@ function AnalyticsContent() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.2rem', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
           <BarChart3 size={18} style={{ color: '#17365D' }} />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#17365D' }}>Live Data Feed</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#17365D' }}>Supabase Live Sync</span>
         </div>
       </motion.div>
 
@@ -153,10 +157,10 @@ function AnalyticsContent() {
         </motion.div>
       )}
 
-      {/* Analytics Charts Grid with Enhanced Border Gapping */}
+      {/* Analytics Charts Grid with Proper Border Gapping */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '2rem' }}>
         
-        {/* State-wise Cost Escalation Card */}
+        {/* State-wise Cost Exposure Card */}
         <motion.div 
           className="card-paimana"
           whileHover={{ scale: 1.012, y: -4 }}
@@ -189,7 +193,7 @@ function AnalyticsContent() {
               ) : (
                 <div style={{ display: 'flex', height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#718096', gap: '0.5rem' }}>
                   <span style={{ fontWeight: 600 }}>No state data found</span>
-                  <span style={{ fontSize: '0.75rem' }}>Total loaded records: {projects.length}</span>
+                  <span style={{ fontSize: '0.75rem' }}>Loaded records: {projects.length}</span>
                 </div>
               )}
             </div>
