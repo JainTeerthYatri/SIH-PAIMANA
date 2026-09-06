@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BarChart3, TrendingUp, MapPin, Search } from 'lucide-react';
+import { motion } from 'framer-motion';
 import {
   ResponsiveContainer,
   BarChart,
@@ -50,7 +51,6 @@ function AnalyticsContent() {
         const res = await fetch('/api/projects/drivers');
         const data = await res.json();
         if (data && data.projects) {
-          // Map database schema fields to Analytics component interface
           const mapped = data.projects.map((p: any) => ({
             id: p.id,
             state: p.state,
@@ -77,7 +77,6 @@ function AnalyticsContent() {
 
   const isFiltered = Boolean(searchQuery);
 
-  // Dynamic State Aggregation
   const stateMap: Record<string, StateAggregation> = {};
 
   filteredProjects.forEach((p) => {
@@ -110,14 +109,18 @@ function AnalyticsContent() {
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Active Search Filter Banner */}
       {isFiltered && (
-        <div style={{ backgroundColor: '#FFF9EF', border: '1.5px solid #F59A00', borderRadius: '14px', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ backgroundColor: '#FFF9EF', border: '1.5px solid #F59A00', borderRadius: '14px', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(245,154,0,0.1)' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <Search size={18} style={{ color: '#F59A00' }} />
             <span style={{ fontSize: '0.9rem', color: '#17365D', fontWeight: 600 }}>
               Live Filter Active: <strong style={{ color: '#EA580C' }}>"{searchQuery}"</strong> • Found <strong>{filteredProjects.length}</strong> matching projects across {stateData.length} states
             </span>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Header */}
@@ -133,16 +136,24 @@ function AnalyticsContent() {
         </div>
       </div>
 
-      {/* Analytics Charts Grid */}
+      {/* Analytics Charts Grid with Spring & Hover Effects */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
-        {/* State-wise Cost Escalation Chart */}
-        <div className="card-paimana">
+        
+        {/* State-wise Cost Escalation Card */}
+        <motion.div 
+          className="card-paimana"
+          whileHover={{ scale: 1.015, y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', color: '#17365D' }}>State-wise Cost Exposure</h3>
+              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700 }}>State-wise Cost Exposure</h3>
               <div style={{ fontSize: '0.78rem', color: '#718096' }}>Aggregated Cost Escalation (₹ Cr) by State</div>
             </div>
-            <MapPin size={20} style={{ color: '#F59A00' }} />
+            <div style={{ padding: '0.5rem', backgroundColor: '#FFF9EF', borderRadius: '10px', border: '1px solid #F59A00' }}>
+              <MapPin size={20} style={{ color: '#F59A00' }} />
+            </div>
           </div>
 
           <div style={{ width: '100%', height: '280px' }}>
@@ -162,16 +173,23 @@ function AnalyticsContent() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Multi-Year Historical Trend Line */}
-        <div className="card-paimana">
+        {/* Multi-Year Historical Trend Card */}
+        <motion.div 
+          className="card-paimana"
+          whileHover={{ scale: 1.015, y: -4 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5' }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', color: '#17365D' }}>Multi-Year Escalation Trend</h3>
+              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700 }}>Multi-Year Escalation Trend</h3>
               <div style={{ fontSize: '0.78rem', color: '#718096' }}>Average Schedule Delay vs Cost Overrun %</div>
             </div>
-            <TrendingUp size={20} style={{ color: '#E53E3E' }} />
+            <div style={{ padding: '0.5rem', backgroundColor: '#FFF5F5', borderRadius: '10px', border: '1px solid #FEB2B2' }}>
+              <TrendingUp size={20} style={{ color: '#E53E3E' }} />
+            </div>
           </div>
 
           <div style={{ width: '100%', height: '280px' }}>
@@ -182,12 +200,13 @@ function AnalyticsContent() {
                 <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
                 <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} />
                 <Legend />
-                <Line type="monotone" dataKey="avgDelayMonths" name="Avg Delay (Months)" stroke="#E53E3E" strokeWidth={3} />
-                <Line type="monotone" dataKey="avgCostOverrunPct" name="Avg Cost Variance %" stroke="#F59A00" strokeWidth={3} />
+                <Line type="monotone" dataKey="avgDelayMonths" name="Avg Delay (Months)" stroke="#E53E3E" strokeWidth={3} dot={{ r: 4 }} />
+                <Line type="monotone" dataKey="avgCostOverrunPct" name="Avg Cost Variance %" stroke="#F59A00" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
+
       </div>
     </div>
   );
