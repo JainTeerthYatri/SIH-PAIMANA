@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import {
   Bell,
@@ -39,7 +39,7 @@ export default function AlertCenterPage() {
   const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
   const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
   
-  // 🔐 3-Level Security Role State
+  // 🔐 Security Role State
   const [userRole, setUserRole] = useState<UserRole>('admin')
 
   // 📄 Database Pagination
@@ -56,7 +56,7 @@ export default function AlertCenterPage() {
     resolved: 0
   })
 
-  // 🔐 Fetch User Role from Supabase Session / Meta
+  // 🔐 Fetch User Role
   useEffect(() => {
     async function fetchUserRole() {
       try {
@@ -72,138 +72,182 @@ export default function AlertCenterPage() {
     fetchUserRole()
   }, [])
 
-  // 🔄 Fetch Live Status Breakdown
-  useEffect(() => {
-    async function fetchCountsSummary() {
-      try {
-        const { data, error } = await supabase
-          .from('paimana_projects')
-          .select('id, cost_overrun_cr')
-          .gt('cost_overrun_cr', 0)
+  // 🔄 Fetch Projects & Merge Status from isolated 'alert_statuses' table
+  const fetchAlertsAndCounts = useCallback(async () => {
+    try {
+      setLoading(true)
 
-        if (!error && data) {
-          let opn = 0, ack = 0, inp = 0, res = 0
+      // 1. Fetch all projects with overrun
+      const { data: projectsData, error: prjError } = await supabase
+        .from('paimana_projects')
+        .select('*')
+        .gt('cost_overrun_cr', 0)
+        .order('cost_overrun_cr', { ascending: false })
 
-          data.forEach((_, idx) => {
-            const stIdx = idx % 4
-            if (stIdx === 0) opn++
-            else if (stIdx === 1) ack++
-            else if (stIdx === 2) inp++
-            else res++
-          })
+      if (prjError) throw prjError
 
-          setCounts({
-            total: data.length,
-            open: opn,
-            acknowledged: ack,
-            in_progress: inp,
-            resolved: res
-          })
-        }
-      } catch (err) {
-        console.warn('Error fetching counts summary:', err)
+      // 2. Fetch all statuses from NAYI TABLE 'alert_statuses'
+      const { data: statusData, error: stError } = await supabase
+        .from('alert_statuses')
+        .select('project_id, status')
+
+      if (stError) {
+        console.warn('Status table read warning (will default to OPEN):', stError)
       }
-    }
 
-    fetchCountsSummary()
-  }, [])
+      // Map status table entries to dictionary
+      const statusMap = new Map<string | number, AlertStatus>()
+      if (statusData) {
+        statusData.forEach((st) => {
+          statusMap.set(st.project_id, st.status as AlertStatus)
+        })
+      }
 
-  // 🔄 Fetch Paginated Alerts List
-  useEffect(() => {
-    async function fetchPaginatedAlerts() {
-      try {
-        setLoading(true)
+      if (projectsData) {
+        // Build all dynamic alert items
+        const allAlerts: AlertItem[] = projectsData.map((item, idx) => {
+          const overrun = item.cost_overrun_cr || 0
+          const origCost = item.original_cost_cr || 1
 
-        const from = (currentPage - 1) * itemsPerPage
-        const to = from + itemsPerPage - 1
+          let sev: Severity = 'LOW'
+          if (overrun > 500 || (overrun / origCost) > 0.3) {
+            sev = 'CRITICAL'
+          } else if (overrun > 100) {
+            sev = 'HIGH'
+          } else if (overrun > 0) {
+            sev = 'MEDIUM'
+          }
 
-        let query = supabase
-          .from('paimana_projects')
-          .select('*', { count: 'exact' })
-          .gt('cost_overrun_cr', 0)
-          .order('cost_overrun_cr', { ascending: false })
-          .range(from, to)
+          // Fetch status from new table or default to OPEN
+          const currentStatus: AlertStatus = statusMap.get(item.id) || 'OPEN'
+
+          return {
+            id: item.id,
+            projectId: `PRJ-${item.id}`,
+            projectName: item.project_name || 'Central Infrastructure Project',
+            title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
+            explanation: `Project in ${item.State || 'Multi-States'} reported ₹${overrun.toLocaleString()} Cr cost overrun over ₹${(item.original_cost_cr || 0).toLocaleString()} Cr sanctioned budget.`,
+            severity: sev,
+            status: currentStatus,
+            recommendedAction: overrun > 500
+              ? 'Initiate High-Level Inter-Ministerial Committee Review & Expenditure Audit.'
+              : overrun > 100
+              ? 'Issue formal query to Project Monitoring Unit and fast-track land clearance.'
+              : 'Request updated Common Upload Form (CUF) monthly progress report.',
+            timestamp: `${(idx % 12) + 1} hours ago`
+          }
+        })
+
+        // 📊 Accurately Calculate Header Metric Summary
+        let opn = 0, ack = 0, inp = 0, res = 0
+        allAlerts.forEach(a => {
+          if (a.status === 'OPEN') opn++
+          else if (a.status === 'ACKNOWLEDGED') ack++
+          else if (a.status === 'IN_PROGRESS') inp++
+          else if (a.status === 'RESOLVED') res++
+        })
+
+        setCounts({
+          total: allAlerts.length,
+          open: opn,
+          acknowledged: ack,
+          in_progress: inp,
+          resolved: res
+        })
+
+        // Filter Logic
+        let filtered = allAlerts
 
         if (searchQuery.trim()) {
-          query = query.or(`project_name.ilike.%${searchQuery}%,State.ilike.%${searchQuery}%`)
+          const q = searchQuery.toLowerCase()
+          filtered = filtered.filter(a => 
+            a.projectName.toLowerCase().includes(q) || 
+            a.explanation.toLowerCase().includes(q)
+          )
         }
 
-        const { data, count, error } = await query
-
-        if (error) throw error
-
-        if (count !== null) {
-          setTotalCount(count)
+        if (filterStatus !== 'ALL') {
+          filtered = filtered.filter(a => a.status === filterStatus)
         }
 
-        if (data) {
-          const dynamicAlerts: AlertItem[] = data.map((item, idx) => {
-            const overrun = item.cost_overrun_cr || 0
-            const origCost = item.original_cost_cr || 1
-
-            let sev: Severity = 'LOW'
-            if (overrun > 500 || (overrun / origCost) > 0.3) {
-              sev = 'CRITICAL'
-            } else if (overrun > 100) {
-              sev = 'HIGH'
-            } else if (overrun > 0) {
-              sev = 'MEDIUM'
-            }
-
-            const globalIdx = from + idx
-            const statusIdx = globalIdx % 4
-            const st: AlertStatus = statusIdx === 0 ? 'OPEN' : statusIdx === 1 ? 'ACKNOWLEDGED' : statusIdx === 2 ? 'IN_PROGRESS' : 'RESOLVED'
-
-            return {
-              id: item.id || `ALERT-${globalIdx}`,
-              projectId: `PRJ-${item.id || globalIdx + 1}`,
-              projectName: item.project_name || 'Central Infrastructure Project',
-              title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
-              explanation: `Project in ${item.State || 'Multi-States'} reported ₹${overrun.toLocaleString()} Cr cost overrun over ₹${(item.original_cost_cr || 0).toLocaleString()} Cr sanctioned budget.`,
-              severity: sev,
-              status: st,
-              recommendedAction: overrun > 500
-                ? 'Initiate High-Level Inter-Ministerial Committee Review & Expenditure Audit.'
-                : overrun > 100
-                ? 'Issue formal query to Project Monitoring Unit and fast-track land clearance.'
-                : 'Request updated Common Upload Form (CUF) monthly progress report.',
-              timestamp: `${(idx % 12) + 1} hours ago`
-            }
-          })
-          setAlerts(dynamicAlerts)
+        if (filterSeverity !== 'ALL') {
+          filtered = filtered.filter(a => a.severity === filterSeverity)
         }
-      } catch (err) {
-        console.warn('Supabase Alert fetch error:', err)
-      } finally {
-        setLoading(false)
+
+        setTotalCount(filtered.length)
+
+        // Paginate client side
+        const from = (currentPage - 1) * itemsPerPage
+        const paginated = filtered.slice(from, from + itemsPerPage)
+
+        setAlerts(paginated)
       }
+    } catch (err) {
+      console.error('Error fetching alerts:', err)
+    } finally {
+      setLoading(false)
     }
+  }, [currentPage, searchQuery, filterStatus, filterSeverity])
 
-    fetchPaginatedAlerts()
-  }, [currentPage, searchQuery])
+  // Initial Load + Realtime Listener on Nayi Table 'alert_statuses'
+  useEffect(() => {
+    fetchAlertsAndCounts()
+
+    // ⚡ Realtime subscription ONLY on the isolated 'alert_statuses' table
+    const channel = supabase
+      .channel('realtime_alert_statuses')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'alert_statuses' },
+        () => {
+          fetchAlertsAndCounts()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchAlertsAndCounts])
 
   const handleSearchChange = (val: string) => {
     setSearchQuery(val)
     setCurrentPage(1)
   }
 
+  // ⚡ Status Save in Isolated Nayi Table (`alert_statuses`)
+  const handleStatusUpdate = async (alertId: string | number, newStatus: AlertStatus) => {
+    if (!canChangeStatus) return
+
+    // Optimistic UI update
+    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, status: newStatus } : a))
+
+    // Upsert into isolated alert_statuses table
+    const { error } = await supabase
+      .from('alert_statuses')
+      .upsert(
+        { project_id: alertId, status: newStatus, updated_at: new Date().toISOString() },
+        { onConflict: 'project_id' }
+      )
+
+    if (error) {
+      console.error('Failed to update status in alert_statuses:', error)
+      fetchAlertsAndCounts()
+    } else {
+      fetchAlertsAndCounts()
+    }
+  }
+
   const canChangeStatus = userRole === 'admin' || userRole === 'super-admin'
-
-  const filteredAlerts = alerts.filter((a) => {
-    const matchesSev = filterSeverity === 'ALL' || a.severity === filterSeverity
-    const matchesStat = filterStatus === 'ALL' || a.status === filterStatus
-    return matchesSev && matchesStat
-  })
-
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1
 
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
       
-      {/* 🏛️ RE-DESIGNED CLEAN & CRISP HEADER */}
+      {/* 🏛️ RE-DESIGNED CLEAN HEADER */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         
-        {/* Top Meta Line: Badges + Role */}
+        {/* Top Meta Line */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-black text-[#F59A00] tracking-wider uppercase">
@@ -212,7 +256,7 @@ export default function AlertCenterPage() {
             <span className="w-1 h-1 bg-slate-300 rounded-full" />
             <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-extrabold rounded-md border border-red-100 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              LIVE SYSTEM
+              LIVE REALTIME ENGINE
             </span>
           </div>
 
@@ -238,13 +282,12 @@ export default function AlertCenterPage() {
             </p>
           </div>
 
-          {/* 📊 CLEAN & COMPACT METRIC BAR */}
+          {/* 📊 REALTIME ACCURATE METRIC BAR */}
           <div className="flex items-center gap-1 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shrink-0 self-start lg:self-auto overflow-x-auto max-w-full">
             
-            {/* Total Active Box */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#17365D] text-white rounded-lg text-xs font-bold shrink-0 transition-transform hover:scale-[1.02]">
               <span className="text-[10px] text-[#F59A00] uppercase tracking-wider font-extrabold">TOTAL ALERTS</span>
-              <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs font-black">{counts.total || totalCount}</span>
+              <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs font-black">{counts.total}</span>
             </div>
 
             <div className="h-4 w-[1px] bg-slate-200 my-auto mx-1 shrink-0" />
@@ -306,7 +349,7 @@ export default function AlertCenterPage() {
             {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
               <button
                 key={sev}
-                onClick={() => setFilterSeverity(sev)}
+                onClick={() => { setFilterSeverity(sev); setCurrentPage(1); }}
                 className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                   filterSeverity === sev
                     ? 'bg-[#17365D] text-white shadow-sm'
@@ -323,7 +366,7 @@ export default function AlertCenterPage() {
             {(['ALL', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
               <button
                 key={st}
-                onClick={() => setFilterStatus(st)}
+                onClick={() => { setFilterStatus(st); setCurrentPage(1); }}
                 className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                   filterStatus === st
                     ? 'bg-[#F59A00] text-white shadow-sm'
@@ -342,10 +385,10 @@ export default function AlertCenterPage() {
         {loading ? (
           <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
             <Activity className="w-7 h-7 text-[#17365D] animate-spin mx-auto" />
-            <p className="text-xs font-bold text-[#17365D]">Loading alerts...</p>
+            <p className="text-xs font-bold text-[#17365D]">Loading real-time alerts...</p>
           </div>
-        ) : filteredAlerts.length > 0 ? (
-          filteredAlerts.map((alert) => (
+        ) : alerts.length > 0 ? (
+          alerts.map((alert) => (
             <div
               key={alert.id}
               className={`bg-white rounded-2xl p-5 border-l-8 border border-slate-200/80 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.005] hover:shadow-xl space-y-3 ${
@@ -399,7 +442,7 @@ export default function AlertCenterPage() {
                 </div>
               </div>
 
-              {/* 🔒 STATUS CHANGE SECTION (RESTRICTED TO ADMIN & SUPER-ADMIN) */}
+              {/* 🔒 STATUS CHANGE SECTION */}
               <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="font-semibold text-slate-500 flex items-center gap-2">
                   <span>Current Status:</span>
@@ -409,14 +452,11 @@ export default function AlertCenterPage() {
                 </div>
 
                 {canChangeStatus ? (
-                  /* Admin & Super-Admin Status Buttons */
                   <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
                     {(['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
                       <button
                         key={st}
-                        onClick={() => {
-                          setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, status: st } : a))
-                        }}
+                        onClick={() => handleStatusUpdate(alert.id, st)}
                         className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
                           alert.status === st
                             ? 'bg-[#F59A00] text-white shadow-xs'
@@ -428,7 +468,6 @@ export default function AlertCenterPage() {
                     ))}
                   </div>
                 ) : (
-                  /* Officer Lock Message */
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80">
                     <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>Status change restricted to Admin & Super-Admin</span>
