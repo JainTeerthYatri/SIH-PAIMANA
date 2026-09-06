@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { createClient } from '@supabase/supabase-[#F59A00]'
+import { createClient } from '@supabase/supabase-js'
 import {
   Cpu,
   TrendingUp,
