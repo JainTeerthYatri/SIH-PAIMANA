@@ -22,71 +22,44 @@ const supabaseKey =
   '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-type RiskLevel = 'HIGH' | 'MEDIUM' | 'LOW';
-type ProjectStatus = 'UNDER_IMPLEMENTATION' | 'COMPLETED' | 'DELAYED' | string;
-type LandAcquisitionStatus = 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' | string;
-
 interface Project {
-  id: string | number;
-  project_name?: string;
-  name?: string;
-  Sector?: string;
-  sector?: string;
-  State?: string;
-  state?: string;
-  ministry?: string;
-  department?: string;
-  original_cost_cr?: number;
-  originalCost?: number;
-  anticipated_cost_cr?: number;
-  revisedCost?: number;
+  id?: string | number;
+  project_name: string;
+  State: string;
+  original_cost_cr: number;
+  anticipated_cost_cr: number;
+  cumulative_exp_cr?: number;
+  physical_progress_pct?: number;
   cost_overrun_cr?: number;
-  originalCompletion?: string;
-  expectedCompletion?: string;
-  physicalProgressPercent?: number;
-  financialProgressPercent?: number;
+  start_date?: string;
+  target_completion?: string;
+  completion_month?: string;
+  completion_year?: number;
+  sector?: string;
   contractor?: string;
-  fundingSource?: string;
-  landAcquisitionStatus?: LandAcquisitionStatus;
-  costVariancePercent?: number;
-  scheduleDelayMonths?: number;
-  riskScore?: number;
-  riskLevel?: RiskLevel;
-  status?: ProjectStatus;
+  expected_completion_date?: string;
 }
 
 interface ProjectFormData {
-  name: string;
+  project_name: string;
   sector: string;
-  state: string;
-  ministry: string;
-  department: string;
-  originalCost: string;
-  revisedCost: string;
-  originalCompletion: string;
-  expectedCompletion: string;
-  physicalProgressPercent: number;
-  financialProgressPercent: number;
+  State: string;
   contractor: string;
-  fundingSource: string;
-  landAcquisitionStatus: LandAcquisitionStatus;
+  original_cost_cr: string;
+  anticipated_cost_cr: string;
+  target_completion: string;
+  expected_completion_date: string;
 }
 
 const defaultFormData: ProjectFormData = {
-  name: '',
-  sector: 'Transport & Highways',
-  state: 'Maharashtra',
-  ministry: 'Ministry of Road Transport and Highways',
-  department: 'NHAI',
-  originalCost: '',
-  revisedCost: '',
-  originalCompletion: '',
-  expectedCompletion: '',
-  physicalProgressPercent: 50,
-  financialProgressPercent: 50,
+  project_name: '',
+  sector: 'General', // Default General
+  State: '',
   contractor: '',
-  fundingSource: 'Central Sector Scheme',
-  landAcquisitionStatus: 'COMPLETED',
+  original_cost_cr: '',
+  anticipated_cost_cr: '',
+  target_completion: '',
+  expected_completion_date: '',
 };
 
 export default function ProjectsPage() {
@@ -130,27 +103,15 @@ export default function ProjectsPage() {
     }
   };
 
-  // Helper getters for unified data structure
-  const getProjectName = (p: Project) => p.project_name || p.name || 'Unnamed Project';
-  const getProjectSector = (p: Project) => p.Sector || p.sector || 'General';
-  const getProjectState = (p: Project) => p.State || p.state || 'N/A';
-  const getOriginalCost = (p: Project) => p.original_cost_cr ?? p.originalCost ?? 0;
-  const getRevisedCost = (p: Project) => p.anticipated_cost_cr ?? p.revisedCost ?? 0;
-  const getCostOverrun = (p: Project) => {
-    if (p.cost_overrun_cr !== undefined) return p.cost_overrun_cr;
-    const rev = getRevisedCost(p);
-    const orig = getOriginalCost(p);
-    return Math.max(0, rev - orig);
-  };
-
   const filteredProjects = projects.filter((p) => {
     const q = searchTerm.toLowerCase().trim();
     if (!q) return true;
     return (
-      getProjectName(p).toLowerCase().includes(q) ||
-      String(p.id).toLowerCase().includes(q) ||
-      getProjectState(p).toLowerCase().includes(q) ||
-      getProjectSector(p).toLowerCase().includes(q)
+      (p.project_name || '').toLowerCase().includes(q) ||
+      String(p.id || '').toLowerCase().includes(q) ||
+      (p.State || '').toLowerCase().includes(q) ||
+      (p.sector || '').toLowerCase().includes(q) ||
+      (p.contractor || '').toLowerCase().includes(q)
     );
   });
 
@@ -163,79 +124,67 @@ export default function ProjectsPage() {
 
   const handleOpenCreateModal = (): void => {
     setEditingProject(null);
-    setFormData({
-      name: '',
-      sector: 'Transport & Highways',
-      state: 'Maharashtra',
-      ministry: 'Ministry of Road Transport and Highways',
-      department: 'NHAI',
-      originalCost: '1000',
-      revisedCost: '1200',
-      originalCompletion: '2025-06-30',
-      expectedCompletion: '2025-12-31',
-      physicalProgressPercent: 50,
-      financialProgressPercent: 50,
-      contractor: 'Larsen & Toubro',
-      fundingSource: 'Central Sector Scheme',
-      landAcquisitionStatus: 'COMPLETED',
-    });
+    setFormData(defaultFormData);
     setShowModal(true);
   };
 
   const handleOpenEditModal = (proj: Project): void => {
     setEditingProject(proj);
     setFormData({
-      name: getProjectName(proj),
-      sector: getProjectSector(proj),
-      state: getProjectState(proj),
-      ministry: proj.ministry || '',
-      department: proj.department || '',
-      originalCost: String(getOriginalCost(proj)),
-      revisedCost: String(getRevisedCost(proj)),
-      originalCompletion: proj.originalCompletion || '',
-      expectedCompletion: proj.expectedCompletion || '',
-      physicalProgressPercent: proj.physicalProgressPercent || 50,
-      financialProgressPercent: proj.financialProgressPercent || 50,
+      project_name: proj.project_name || '',
+      sector: proj.sector || 'General',
+      State: proj.State || '',
       contractor: proj.contractor || '',
-      fundingSource: proj.fundingSource || '',
-      landAcquisitionStatus: proj.landAcquisitionStatus || 'COMPLETED',
+      original_cost_cr: proj.original_cost_cr !== undefined ? String(proj.original_cost_cr) : '',
+      anticipated_cost_cr: proj.anticipated_cost_cr !== undefined ? String(proj.anticipated_cost_cr) : '',
+      target_completion: proj.target_completion || '',
+      expected_completion_date: proj.expected_completion_date || '',
     });
     setShowModal(true);
   };
 
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
 
-    const orig = parseFloat(formData.originalCost) || 0;
-    const rev = parseFloat(formData.revisedCost) || 0;
+    const orig = parseFloat(formData.original_cost_cr) || 0;
+    const rev = parseFloat(formData.anticipated_cost_cr) || 0;
     const overrun = Math.max(0, rev - orig);
 
+    // Completion Month & Year Auto Calculation
+    let compMonth = '';
+    let compYear: number | null = null;
+    const dateForComp = formData.expected_completion_date || formData.target_completion;
+    if (dateForComp) {
+      const d = new Date(dateForComp);
+      if (!isNaN(d.getTime())) {
+        compMonth = d.toLocaleString('default', { month: 'long' });
+        compYear = d.getFullYear();
+      }
+    }
+
     const payload = {
-      project_name: formData.name,
-      Sector: formData.sector,
-      State: formData.state,
-      ministry: formData.ministry,
-      department: formData.department,
+      project_name: formData.project_name,
+      sector: formData.sector || 'General',
+      State: formData.State,
+      contractor: formData.contractor,
       original_cost_cr: orig,
       anticipated_cost_cr: rev,
       cost_overrun_cr: overrun,
-      originalCompletion: formData.originalCompletion,
-      expectedCompletion: formData.expectedCompletion,
-      physicalProgressPercent: formData.physicalProgressPercent,
-      financialProgressPercent: formData.financialProgressPercent,
-      contractor: formData.contractor,
-      fundingSource: formData.fundingSource,
-      landAcquisitionStatus: formData.landAcquisitionStatus,
+      target_completion: formData.target_completion || null,
+      expected_completion_date: formData.expected_completion_date || null,
+      completion_month: compMonth || null,
+      completion_year: compYear,
     };
 
     try {
       if (editingProject) {
-        const { error } = await supabase
-          .from('paimana_projects')
-          .update(payload)
-          .eq('id', editingProject.id);
+        let query = supabase.from('paimana_projects').update(payload);
+        if (editingProject.id !== undefined) {
+          query = query.eq('id', editingProject.id);
+        } else {
+          query = query.eq('project_name', editingProject.project_name);
+        }
+        const { error } = await query;
         if (error) throw error;
       } else {
         const { error } = await supabase.from('paimana_projects').insert([payload]);
@@ -296,7 +245,7 @@ export default function ProjectsPage() {
 
       {/* 📋 MAIN CONTENT CONTAINER */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-xl hover:border-[#F59A00]">
-        {/* Search & Control Bar */}
+        {/* Search Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div className="relative flex-1 max-w-md">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
@@ -305,7 +254,7 @@ export default function ProjectsPage() {
             <input
               type="text"
               className="w-full pl-10 pr-9 py-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl text-xs sm:text-sm font-medium text-[#17365D] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F59A00] transition-all"
-              placeholder="Search by project name, state, or sector..."
+              placeholder="Search by project name, state, sector, contractor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -325,24 +274,23 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Projects Table */}
+        {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#FFF9EF] border-b border-amber-200/60 text-[#17365D] font-extrabold uppercase tracking-wider text-[11px]">
-                <th className="px-4 py-3.5">ID</th>
                 <th className="px-4 py-3.5">Project Name</th>
                 <th className="px-4 py-3.5">Sector & State</th>
                 <th className="px-4 py-3.5 text-right">Original Cost</th>
-                <th className="px-4 py-3.5 text-right">Revised Cost</th>
-                <th className="px-4 py-3.5 text-center">Status / Risk</th>
+                <th className="px-4 py-3.5 text-right">Anticipated Cost</th>
+                <th className="px-4 py-3.5 text-center">Status / Overrun</th>
                 <th className="px-4 py-3.5 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-[#F59A00] border-t-transparent rounded-full animate-spin" />
                       Fetching projects data from Supabase...
@@ -351,24 +299,21 @@ export default function ProjectsPage() {
                 </tr>
               ) : paginatedProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
                     No projects found matching "{searchTerm}"
                   </td>
                 </tr>
               ) : (
                 paginatedProjects.map((p, index) => {
-                  const overrun = getCostOverrun(p);
+                  const overrun = p.cost_overrun_cr || Math.max(0, (p.anticipated_cost_cr || 0) - (p.original_cost_cr || 0));
                   return (
                     <tr
                       key={p.id || `proj-${index}`}
                       className="hover:bg-amber-50/40 transition-colors"
                     >
-                      <td className="px-4 py-3.5 font-bold font-mono text-[#17365D] text-xs">
-                        #{p.id}
-                      </td>
                       <td className="px-4 py-3.5 max-w-xs">
                         <div className="font-bold text-[#17365D] line-clamp-2">
-                          {getProjectName(p)}
+                          {p.project_name || 'N/A'}
                         </div>
                         {p.contractor && (
                           <div className="text-[11px] text-slate-400 mt-0.5">
@@ -377,16 +322,16 @@ export default function ProjectsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="font-semibold text-slate-800">{getProjectSector(p)}</div>
+                        <div className="font-semibold text-slate-800">{p.sector || 'General'}</div>
                         <div className="text-[11px] text-[#F59A00] font-bold">
-                          {getProjectState(p)}
+                          {p.State || 'N/A'}
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-right font-medium text-slate-600 whitespace-nowrap">
-                        ₹{getOriginalCost(p).toLocaleString()} Cr
+                        ₹{(p.original_cost_cr || 0).toLocaleString()} Cr
                       </td>
                       <td className="px-4 py-3.5 text-right font-bold text-[#17365D] whitespace-nowrap">
-                        ₹{getRevisedCost(p).toLocaleString()} Cr
+                        ₹{(p.anticipated_cost_cr || 0).toLocaleString()} Cr
                       </td>
                       <td className="px-4 py-3.5 text-center whitespace-nowrap">
                         {overrun > 0 ? (
@@ -454,135 +399,142 @@ export default function ProjectsPage() {
         )}
       </div>
 
-      {/* 🏛️ CRUD MODAL FORM */}
+      {/* 🖼️ EXACT MATCH MODAL FORM */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 border border-slate-200 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-7 border border-slate-100 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-start justify-between">
               <div>
-                <span className="text-[10px] font-black text-[#F59A00] tracking-wider uppercase">
-                  {editingProject ? 'UPDATE RECORD' : 'NEW INFRASTRUCTURE RECORD'}
+                <span className="text-[11px] font-black text-[#F59A00] tracking-wider uppercase block mb-0.5">
+                  UPDATE RECORD
                 </span>
-                <h2 className="text-lg font-extrabold text-[#17365D]">
-                  {editingProject
-                    ? `Edit Project #${editingProject.id}`
-                    : 'Create New Infrastructure Project'}
+                <h2 className="text-xl font-black text-[#0B2545]">
+                  Edit Project {editingProject?.id ? `#${editingProject.id}` : ''}
                 </h2>
               </div>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold text-slate-700">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Project Name *</label>
+            <form onSubmit={handleSubmit} className="space-y-5 text-xs font-bold text-[#17365D]">
+              {/* Row 1: Project Name & Sector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label>Project Name *</label>
                   <input
                     type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={formData.project_name}
+                    onChange={(e) => setFormData({ ...formData, project_name: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Sector *</label>
+                <div className="space-y-1.5">
+                  <label>Sector *</label>
                   <select
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   >
+                    <option value="General">General</option>
+                    <option value="Urban Infrastructure">Urban Infrastructure</option>
                     <option value="Transport & Highways">Transport & Highways</option>
                     <option value="Railways">Railways</option>
                     <option value="Water Resources">Water Resources</option>
                     <option value="Power & Energy">Power & Energy</option>
                     <option value="Renewable Energy">Renewable Energy</option>
-                    <option value="Urban Infrastructure">Urban Infrastructure</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">State *</label>
+              {/* Row 2: State & Contractor */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label>State *</label>
                   <input
                     type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    value={formData.State}
+                    onChange={(e) => setFormData({ ...formData, State: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Contractor / Executing Agency</label>
+                <div className="space-y-1.5">
+                  <label>Contractor / Executing Agency</label>
                   <input
                     type="text"
                     value={formData.contractor}
                     onChange={(e) => setFormData({ ...formData, contractor: e.target.value })}
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Original Sanctioned Cost (₹ Cr) *</label>
+              {/* Row 3: Costs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label>Original Sanctioned Cost (₹ Cr) *</label>
                   <input
                     type="number"
-                    value={formData.originalCost}
-                    onChange={(e) => setFormData({ ...formData, originalCost: e.target.value })}
+                    step="any"
+                    value={formData.original_cost_cr}
+                    onChange={(e) => setFormData({ ...formData, original_cost_cr: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Revised Project Cost (₹ Cr) *</label>
+                <div className="space-y-1.5">
+                  <label>Revised Project Cost (₹ Cr) *</label>
                   <input
                     type="number"
-                    value={formData.revisedCost}
-                    onChange={(e) => setFormData({ ...formData, revisedCost: e.target.value })}
+                    step="any"
+                    value={formData.anticipated_cost_cr}
+                    onChange={(e) => setFormData({ ...formData, anticipated_cost_cr: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Original Completion Date</label>
+              {/* Row 4: Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label>Original Completion Date</label>
                   <input
                     type="date"
-                    value={formData.originalCompletion}
-                    onChange={(e) => setFormData({ ...formData, originalCompletion: e.target.value })}
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    value={formData.target_completion}
+                    onChange={(e) => setFormData({ ...formData, target_completion: e.target.value })}
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[#17365D] font-bold">Expected Completion Date</label>
+                <div className="space-y-1.5">
+                  <label>Expected Completion Date</label>
                   <input
                     type="date"
-                    value={formData.expectedCompletion}
-                    onChange={(e) => setFormData({ ...formData, expectedCompletion: e.target.value })}
-                    className="w-full p-2.5 bg-[#FFF9EF] border border-amber-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
+                    value={formData.expected_completion_date}
+                    onChange={(e) => setFormData({ ...formData, expected_completion_date: e.target.value })}
+                    className="w-full p-3 bg-[#FFFBF0] border border-amber-200/80 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#F59A00] text-slate-800 font-medium"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              {/* Footer Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 font-extrabold rounded-2xl hover:bg-slate-50 cursor-pointer transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#F59A00] hover:bg-amber-600 text-white font-bold rounded-xl shadow-md transition-all cursor-pointer active:scale-95"
+                  className="px-6 py-2.5 bg-[#F59A00] hover:bg-amber-600 text-white font-extrabold rounded-2xl shadow-md transition-all cursor-pointer active:scale-95"
                 >
                   {editingProject ? 'Update Project' : 'Save Project'}
                 </button>
