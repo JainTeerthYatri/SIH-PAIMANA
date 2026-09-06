@@ -108,30 +108,30 @@ function AnalyticsContent() {
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       
-      {/* Header Card */}
+      {/* Header Card with proper gapping and styling */}
       <motion.div 
         className="card-paimana"
         whileHover={{ scale: 1.008, y: -2 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.75rem 2rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}
+        style={{ backgroundColor: '#FFFFFF', borderRadius: '18px', padding: '2rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#F59A00', letterSpacing: '0.05em', textTransform: 'uppercase', backgroundColor: '#FFF9EF', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid #F59A00' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#F59A00', letterSpacing: '0.05em', textTransform: 'uppercase', backgroundColor: '#FFF9EF', padding: '0.25rem 0.75rem', borderRadius: '6px', border: '1px solid #F59A00' }}>
               DEEP ANALYTICS LAB
             </span>
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17365D', margin: 0 }}>
             Sector & State Infrastructure Risk Analytics
           </h1>
-          <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: '0.2rem' }}>
+          <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: '0.3rem' }}>
             Cross-sectional risk distribution and multi-year historical delay acceleration trends
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 1.2rem', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
           <BarChart3 size={18} style={{ color: '#17365D' }} />
           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#17365D' }}>Live Data Feed</span>
         </div>
@@ -142,7 +142,7 @@ function AnalyticsContent() {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ backgroundColor: '#FFF9EF', border: '1.5px solid #F59A00', borderRadius: '14px', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(245,154,0,0.1)' }}
+          style={{ backgroundColor: '#FFF9EF', border: '1.5px solid #F59A00', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(245,154,0,0.1)' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
             <Search size={18} style={{ color: '#F59A00' }} />
@@ -153,28 +153,28 @@ function AnalyticsContent() {
         </motion.div>
       )}
 
-      {/* Analytics Charts Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
+      {/* Analytics Charts Grid with Enhanced Border Gapping */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))', gap: '2rem' }}>
         
         {/* State-wise Cost Escalation Card */}
         <motion.div 
           className="card-paimana"
-          whileHover={{ scale: 1.015, y: -4 }}
+          whileHover={{ scale: 1.012, y: -4 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5' }}
+          style={{ backgroundColor: '#FFFFFF', borderRadius: '18px', padding: '1.75rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700 }}>State-wise Cost Exposure</h3>
-              <div style={{ fontSize: '0.78rem', color: '#718096' }}>Aggregated Cost Escalation (₹ Cr) by State</div>
+              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700, margin: 0 }}>State-wise Cost Exposure</h3>
+              <div style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.2rem' }}>Aggregated Cost Escalation (₹ Cr) by State</div>
             </div>
-            <div style={{ padding: '0.5rem', backgroundColor: '#FFF9EF', borderRadius: '10px', border: '1px solid #F59A00' }}>
+            <div style={{ padding: '0.55rem', backgroundColor: '#FFF9EF', borderRadius: '10px', border: '1px solid #F59A00' }}>
               <MapPin size={20} style={{ color: '#F59A00' }} />
             </div>
           </div>
 
-          {/* Inner card padding and border matching the benchmark reference style */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '12px', padding: '1rem' }}>
+          {/* Inner bordered container with clean padding for gapping */}
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '14px', padding: '1.25rem' }}>
             <div style={{ width: '100%', height: '280px' }}>
               {stateData.length > 0 ? (
                 <ResponsiveContainer>
@@ -199,22 +199,22 @@ function AnalyticsContent() {
         {/* Multi-Year Historical Trend Card */}
         <motion.div 
           className="card-paimana"
-          whileHover={{ scale: 1.015, y: -4 }}
+          whileHover={{ scale: 1.012, y: -4 }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-          style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5' }}
+          style={{ backgroundColor: '#FFFFFF', borderRadius: '18px', padding: '1.75rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700 }}>Multi-Year Escalation Trend</h3>
-              <div style={{ fontSize: '0.78rem', color: '#718096' }}>Average Schedule Delay vs Cost Overrun %</div>
+              <h3 style={{ fontSize: '1.1rem', color: '#17365D', fontWeight: 700, margin: 0 }}>Multi-Year Escalation Trend</h3>
+              <div style={{ fontSize: '0.78rem', color: '#718096', marginTop: '0.2rem' }}>Average Schedule Delay vs Cost Overrun %</div>
             </div>
-            <div style={{ padding: '0.5rem', backgroundColor: '#FFF5F5', borderRadius: '10px', border: '1px solid #FEB2B2' }}>
+            <div style={{ padding: '0.55rem', backgroundColor: '#FFF5F5', borderRadius: '10px', border: '1px solid #FEB2B2' }}>
               <TrendingUp size={20} style={{ color: '#E53E3E' }} />
             </div>
           </div>
 
-          {/* Inner card padding and border matching the benchmark reference style */}
-          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '12px', padding: '1rem' }}>
+          {/* Inner bordered container with clean padding for gapping */}
+          <div style={{ backgroundColor: '#FFFFFF', border: '1px solid #EAE2D5', borderRadius: '14px', padding: '1.25rem' }}>
             <div style={{ width: '100%', height: '280px' }}>
               <ResponsiveContainer>
                 <LineChart data={historicalTrendData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
