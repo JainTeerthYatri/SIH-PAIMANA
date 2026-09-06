@@ -84,7 +84,7 @@ export default function BenchmarkingPage() {
         setBenchmarks(data)
       } catch (err) {
         console.error('Error loading benchmarking data:', err)
-      } font-sans finally {
+      } finally {
         setLoading(false)
       }
     }
