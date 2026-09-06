@@ -3,13 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { 
-  TrendingUp, 
-  ShieldAlert, 
-  Sparkles,
-  Info,
-  Database
-} from 'lucide-react';
+import { Sparkles, Info, Database } from 'lucide-react';
 
 type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
@@ -46,7 +40,6 @@ function CostDriversContent() {
   const [drivers, setDrivers] = useState<RiskDriver[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Fetch projects by joining paimana_projects and paimana_project_analytics
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -55,11 +48,11 @@ function CostDriversContent() {
           .from('paimana_projects')
           .select(`
             project_name,
-            state,
+            State,
             original_cost_cr,
             anticipated_cost_cr,
             physical_progress_pct,
-            cost_overrun_cr,
+            Cost_overrun_cr,
             paimana_project_analytics (
               risk_level,
               risk_score
@@ -76,21 +69,20 @@ function CostDriversContent() {
 
             return {
               projectName: p.project_name,
-              state: p.state || 'National',
+              state: p.State || 'National',
               originalCostCr: Number(p.original_cost_cr || 0),
               anticipatedCostCr: Number(p.anticipated_cost_cr || 0),
               physicalProgressPct: Number(p.physical_progress_pct || 0),
-              costOverrunCr: Number(p.cost_overrun_cr || 0),
+              costOverrunCr: Number(p.Cost_overrun_cr || 0),
               riskLevel: analytics?.risk_level || 'HIGH',
               riskScore: Number(analytics?.risk_score || 75),
             };
           });
 
           setProjects(mapped);
-
           const current = mapped.find(p => p.projectName === initialProjName) || mapped[0];
           setProject(current);
-          setSelectedProjectName(current.projectName);
+          if (current) setSelectedProjectName(current.projectName);
         }
       } catch (err) {
         console.error('Supabase fetch error:', err);
@@ -102,14 +94,13 @@ function CostDriversContent() {
     fetchProjects();
   }, [initialProjName]);
 
-  // Update selected project & derive dynamic SHAP factors based on real columns
   useEffect(() => {
     if (!selectedProjectName || projects.length === 0) return;
 
     const currentProj = projects.find(p => p.projectName === selectedProjectName) || projects[0];
+    if (!currentProj) return;
     setProject(currentProj);
 
-    // Generating dynamic SHAP factors based on actual project metrics
     const variancePercent = currentProj.originalCostCr > 0 
       ? ((currentProj.anticipatedCostCr - currentProj.originalCostCr) / currentProj.originalCostCr) * 100 
       : 12.5;
@@ -149,28 +140,26 @@ function CostDriversContent() {
   };
 
   if (loading && projects.length === 0) {
-    return <div style={{ padding: '3rem', textAlign: 'center', color: '#17365D', fontWeight: 700 }}>Connecting to Live Supabase Schema...</div>;
+    return <div style={{ padding: '3rem', textAlign: 'center', color: '#17365D', fontWeight: 700 }}>Loading Database Schema...</div>;
   }
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-      {/* Header & Project Selector */}
+    <div style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', fontFamily: 'inherit' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#F59A00', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            EXPLAINABLE AI ENGINE (XAI) - LIVE SCHEMA
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#F59A00', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            EXPLAINABLE AI ENGINE (XAI)
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17365D' }}>
-            Why Is This Project At Risk? (SHAP Factor Attribution)
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#17365D', margin: '0.2rem 0' }}>
+            Why Is This Project At Risk?
           </h1>
-          <div style={{ fontSize: '0.82rem', color: '#718096' }}>
-            Deconstructing risk parameters using live fields from <code style={{ color: '#F59A00' }}>paimana_projects</code> & <code style={{ color: '#F59A00' }}>paimana_project_analytics</code>
+          <div style={{ fontSize: '0.8rem', color: '#718096' }}>
+            SHAP Factor Attribution using live data from <code style={{ color: '#F59A00' }}>paimana_projects</code>
           </div>
         </div>
 
-        {/* Project Selector Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#17365D' }}>Select Project:</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#17365D' }}>Project:</label>
           <select
             value={selectedProjectName}
             onChange={(e) => {
@@ -179,20 +168,19 @@ function CostDriversContent() {
               router.push(`/dashboard/cost-drivers?project=${encodeURIComponent(newName)}`);
             }}
             style={{
-              padding: '0.6rem 1rem',
-              borderRadius: '10px',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '8px',
               border: '1px solid #F59A00',
               backgroundColor: '#FFF9EF',
-              fontSize: '0.88rem',
+              fontSize: '0.82rem',
               fontWeight: 700,
               color: '#17365D',
-              boxShadow: '0 2px 8px rgba(245, 154, 0, 0.15)',
-              maxWidth: '300px'
+              maxWidth: '260px'
             }}
           >
             {projects.map((p, idx) => (
               <option key={idx} value={p.projectName}>
-                {p.projectName} ({p.riskLevel} Risk)
+                {p.projectName}
               </option>
             ))}
           </select>
@@ -201,106 +189,61 @@ function CostDriversContent() {
 
       {project && (
         <>
-          {/* Project Summary Banner */}
-          <div className="card-paimana" style={{ backgroundColor: '#17365D', color: '#FFFFFF', padding: '1.5rem 2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
-              <div>
-                <div style={{ fontSize: '0.8rem', color: '#F59A00', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  PROJECT TELEMETRY • STATE: {project.state.toUpperCase()}
-                </div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFF9EF', marginTop: '0.2rem' }}>
-                  {project.projectName}
-                </h2>
-                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#A0AEC0', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                  <span>Original Cost: <strong style={{ color: '#FFF9EF' }}>₹{project.originalCostCr} Cr</strong></span>
-                  <span>Anticipated Cost: <strong style={{ color: '#FFF9EF' }}>₹{project.anticipatedCostCr} Cr</strong></span>
-                  <span>Physical Progress: <strong style={{ color: '#FFF9EF' }}>{project.physicalProgressPct}%</strong></span>
+          <div style={{ backgroundColor: '#17365D', color: '#FFFFFF', padding: '1.25rem 1.5rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: '#F59A00', fontWeight: 700 }}>STATE: {project.state.toUpperCase()}</div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFF9EF', margin: '0.2rem 0' }}>{project.projectName}</h2>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: '#A0AEC0', flexWrap: 'wrap' }}>
+                <span>Original: ₹{project.originalCostCr} Cr</span>
+                <span>Anticipated: ₹{project.anticipatedCostCr} Cr</span>
+                <span>Progress: {project.physicalProgressPct}%</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1.25rem', padding: '0.75rem 1rem', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '10px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.68rem', color: '#A0AEC0', fontWeight: 700 }}>RISK SCORE</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: project.riskScore >= 70 ? '#FEB2B2' : '#FBD38D' }}>
+                  {project.riskScore}/100
                 </div>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '1rem 1.5rem', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>RISK SCORE</div>
-                  <div style={{ fontSize: '2rem', fontWeight: 900, color: project.riskScore >= 70 ? '#FEB2B2' : '#FBD38D' }}>
-                    {project.riskScore} <span style={{ fontSize: '1rem' }}>/ 100</span>
-                  </div>
-                </div>
-                <div style={{ width: '1px', height: '40px', backgroundColor: 'rgba(255,255,255,0.15)' }} />
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>COST OVERRUN</div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F59A00' }}>
-                    ₹{project.costOverrunCr.toFixed(1)} Cr
-                  </div>
+              <div style={{ width: '1px', backgroundColor: 'rgba(255,255,255,0.15)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.68rem', color: '#A0AEC0', fontWeight: 700 }}>OVERRUN</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#F59A00' }}>
+                  ₹{project.costOverrunCr.toFixed(1)} Cr
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Explainable AI SHAP Factor Breakdown */}
-          <div className="card-paimana">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', color: '#17365D' }}>Risk Factor Impact Breakdown (Live DB Attribution)</h3>
-                <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                  Derived from real metrics in <code style={{ color: '#17365D' }}>paimana_projects</code> table
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#F59A00', backgroundColor: '#FFF9EF', padding: '0.4rem 0.85rem', borderRadius: '20px', border: '1px solid #F59A00', fontWeight: 700 }}>
-                <Database size={14} />
-                <span>Tables Connected</span>
+          <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '12px', border: '1px solid #E2E8F0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ fontSize: '1.1rem', color: '#17365D', margin: 0 }}>Risk Factor Impact Breakdown</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: '#F59A00', backgroundColor: '#FFF9EF', padding: '0.3rem 0.6rem', borderRadius: '12px', border: '1px solid #F59A00', fontWeight: 700 }}>
+                <Database size={12} />
+                <span>Connected</span>
               </div>
             </div>
 
-            {/* SHAP Bars Container */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {drivers.map((drv, idx) => {
                 const style = getSeverityStyle(drv.severity);
                 return (
-                  <div key={idx} style={{
-                    padding: '1.1rem 1.25rem',
-                    borderRadius: '12px',
-                    border: `1px solid ${style.border}`,
-                    backgroundColor: style.bg,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.6rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <span style={{
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '6px',
-                          backgroundColor: style.color,
-                          color: '#FFFFFF',
-                          fontSize: '0.72rem',
-                          fontWeight: 800
-                        }}>
+                  <div key={idx} style={{ padding: '1rem', borderRadius: '10px', border: `1px solid ${style.border}`, backgroundColor: style.bg, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ padding: '0.15rem 0.5rem', borderRadius: '4px', backgroundColor: style.color, color: '#FFFFFF', fontSize: '0.68rem', fontWeight: 800 }}>
                           {drv.severity}
                         </span>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#17365D' }}>
-                          {drv.factor}
-                        </span>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#17365D' }}>{drv.factor}</span>
                       </div>
-
-                      <div style={{ fontSize: '1.1rem', fontWeight: 900, color: style.color, fontFamily: 'Outfit, sans-serif' }}>
-                        {drv.impactPercent}% Weight Impact
-                      </div>
+                      <div style={{ fontSize: '1rem', fontWeight: 900, color: style.color }}>{drv.impactPercent}%</div>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="progress-bar-container" style={{ height: '10px' }}>
-                      <div
-                        className="progress-bar-fill"
-                        style={{
-                          width: `${Math.min(drv.impactPercent * 2.2, 100)}%`,
-                          backgroundColor: style.fill
-                        }}
-                      />
+                    <div style={{ width: '100%', backgroundColor: '#E2E8F0', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(drv.impactPercent * 2.2, 100)}%`, height: '100%', backgroundColor: style.fill }} />
                     </div>
-
-                    <div style={{ fontSize: '0.82rem', color: '#4A5568', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.2rem' }}>
-                      <Info size={14} style={{ color: style.color }} />
+                    <div style={{ fontSize: '0.78rem', color: '#4A5568', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Info size={12} style={{ color: style.color }} />
                       <span>{drv.description}</span>
                     </div>
                   </div>
@@ -316,7 +259,7 @@ function CostDriversContent() {
 
 export default function CostDriversPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#17365D', fontWeight: 600 }}>Loading Database Schema...</div>}>
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#17365D', fontWeight: 600 }}>Loading UI...</div>}>
       <CostDriversContent />
     </Suspense>
   );
