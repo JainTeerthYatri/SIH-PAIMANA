@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -22,7 +22,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface InvalidSample {
   row: number;
-  projectId: string;
+  projectName: string;
   reason: string;
 }
 
@@ -35,15 +35,19 @@ interface ValidationSummary {
   invalidSamples: InvalidSample[];
 }
 
-// Mandatory columns required in the CSV header
+// Exact mandatory columns matching the paimana_projects table schema
 const REQUIRED_COLUMNS = [
-  'project_id',
   'project_name',
-  'sector',
   'state',
   'original_cost_cr',
-  'revised_cost_cr',
-  'completion_date',
+  'anticipated_cost_cr',
+  'cumulative_exp_cr',
+  'physical_progress_pct',
+  'cost_overrun_cr',
+  'start_date',
+  'target_completion',
+  'completion_month',
+  'completion_year',
 ];
 
 export default function CufUpload() {
@@ -54,18 +58,16 @@ export default function CufUpload() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const sampleCsvContent = `Project_ID,Project_Name,Sector,State,Original_Cost_Cr,Revised_Cost_Cr,Completion_Date
-PIM-2001,Nagpur Metro Phase 2,Urban,Maharashtra,6700,7400,2026-06-30
-PIM-2002,Silchar-Saurashtra Highway,Transport,Assam,3400,4100,2025-12-31
-PIM-2003,Indore Water Supply Grid,Water,Madhya Pradesh,1200,1500,2024-10-15
-PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
+  const sampleCsvContent = `project_name,state,original_cost_cr,anticipated_cost_cr,cumulative_exp_cr,physical_progress_pct,cost_overrun_cr,start_date,target_completion,completion_month,completion_year
+Nagpur Metro Phase 2,Maharashtra,6700,7400,3200,45.5,700,2022-01-15,2026-06-30,June,2026
+Silchar-Saurashtra Highway,Assam,3400,4100,1850,60.0,700,2021-05-10,2025-12-31,December,2025`;
 
   const handleDownloadTemplate = () => {
     const blob = new Blob([sampleCsvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'MoSPI_CUF_Template.csv');
+    link.setAttribute('download', 'paimana_projects_template.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -107,14 +109,13 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
         const lines = text.split(/\r\n|\n/).filter((line) => line.trim() !== '');
         if (lines.length < 2) throw new Error('CSV file must contain a header and at least one data row.');
 
-        // Parse and normalize headers
         const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
 
-        // STRICT CHECK: Verify if all required columns are present in the uploaded CSV
+        // STRICT SCHEMA CHECK: Block upload if any required table column is missing
         const missingColumns = REQUIRED_COLUMNS.filter((col) => !headers.includes(col));
         if (missingColumns.length > 0) {
           throw new Error(
-            `Upload blocked! Missing mandatory columns in CSV header: ${missingColumns.join(', ')}. Please use the standard template.`
+            `Upload blocked! Missing mandatory columns in CSV: ${missingColumns.join(', ')}. Please use the exact template.`
           );
         }
 
@@ -130,39 +131,41 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
             rowObj[h] = values[index] || '';
           });
 
-          const projectId = rowObj['project_id'];
           const projectName = rowObj['project_name'];
-          const sector = rowObj['sector'];
           const state = rowObj['state'];
           const originalCost = Number(rowObj['original_cost_cr']);
-          const revisedCost = Number(rowObj['revised_cost_cr']);
-          const completionDate = rowObj['completion_date'];
+          const anticipatedCost = Number(rowObj['anticipated_cost_cr']);
+          const cumulativeExp = Number(rowObj['cumulative_exp_cr']);
+          const physicalProgress = Number(rowObj['physical_progress_pct']);
+          const costOverrun = Number(rowObj['cost_overrun_cr']);
+          const startDate = rowObj['start_date'];
+          const targetCompletion = rowObj['target_completion'];
+          const completionMonth = rowObj['completion_month'];
+          const completionYear = Number(rowObj['completion_year']);
 
-          // Row-level validation checks
-          if (!projectId || !projectName) {
-            invalidSamples.push({ row: rowNum, projectId: projectId || 'N/A', reason: 'Missing Project_ID or Project_Name' });
+          if (!projectName) {
+            invalidSamples.push({ row: rowNum, projectName: 'N/A', reason: 'Missing project_name' });
             continue;
           }
 
-          if (isNaN(originalCost) || isNaN(revisedCost)) {
-            invalidSamples.push({ row: rowNum, projectId: projectId, reason: 'Invalid numeric value in cost columns' });
+          if (isNaN(originalCost) || isNaN(anticipatedCost)) {
+            invalidSamples.push({ row: rowNum, projectName, reason: 'Invalid numeric value in cost columns' });
             continue;
           }
 
-          if (!completionDate) {
-            invalidSamples.push({ row: rowNum, projectId: projectId, reason: 'Missing Completion_Date' });
-            continue;
-          }
-
-          // Payload mapped to paimana_projects table columns
+          // Exact mapping to Supabase paimana_projects table columns
           validPayload.push({
-            project_id: projectId,
             project_name: projectName,
-            sector: sector,
             State: state,
-            original_cost_cr: originalCost,
-            anticipated_cost_cr: revisedCost,
-            completion_date: completionDate,
+            original_cost_cr: isNaN(originalCost) ? null : originalCost,
+            anticipated_cost_cr: isNaN(anticipatedCost) ? null : anticipatedCost,
+            cumulative_exp_cr: isNaN(cumulativeExp) ? null : cumulativeExp,
+            physical_progress_pct: isNaN(physicalProgress) ? null : physicalProgress,
+            cost_overrun_cr: isNaN(costOverrun) ? null : costOverrun,
+            start_date: startDate || null,
+            target_completion: targetCompletion || null,
+            completion_month: completionMonth || null,
+            completion_year: isNaN(completionYear) ? null : completionYear,
           });
         }
 
@@ -197,15 +200,15 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
       setSaving(true);
       setError(null);
 
-      // Upsert into Supabase paimana_projects table matching on project_id
+      // Upsert into Supabase paimana_projects matching on primary key project_name
       const { error: dbError } = await supabase
         .from('paimana_projects')
-        .upsert(summary.validPayload, { onConflict: 'project_id' });
+        .upsert(summary.validPayload, { onConflict: 'project_name' });
 
       if (dbError) throw dbError;
 
       setSuccessMessage(
-        `Successfully synced ${summary.validRows} CUF records into Supabase! Existing matching project entries were updated with new data.`
+        `Successfully synced ${summary.validRows} records into paimana_projects! Existing projects were updated with new data.`
       );
     } catch (err: any) {
       console.error('Supabase upsert error:', err);
@@ -228,14 +231,14 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
             <span className="w-1 h-1 bg-slate-300 rounded-full" />
             <span className="px-2 py-0.5 bg-sky-50 text-sky-700 text-[10px] font-extrabold rounded-md border border-sky-200 flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-[#F59A00]" />
-              STRICT SCHEMA CHECK
+              EXACT SCHEMA SYNC
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17365D] tracking-tight">
-            MoSPI CUF Data Management & Ingestion
+            paimana_projects Data Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Upload CSV datasets matching required schema. Matching project IDs will be updated automatically.
+            Upload CSV datasets matching exact table schema. Duplicate project names will be automatically replaced/updated.
           </p>
         </div>
 
@@ -244,15 +247,15 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
           className="px-4 py-2.5 bg-white border border-[#F59A00] text-[#F59A00] hover:bg-amber-50 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer"
         >
           <Download className="w-4 h-4" />
-          <span>Download CSV Template</span>
+          <span>Download Correct CSV Template</span>
         </button>
       </div>
 
-      {/* REQUIRED COLUMNS INFO BANNER */}
+      {/* REQUIRED COLUMNS BANNER */}
       <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
         <Info className="w-5 h-5 text-[#F59A00] shrink-0 mt-0.5" />
         <div className="space-y-1">
-          <p className="text-xs font-bold text-[#17365D]">Mandatory CSV Columns Required:</p>
+          <p className="text-xs font-bold text-[#17365D]">Strict Table Schema Required (All columns mandatory):</p>
           <div className="flex flex-wrap gap-1.5 pt-1">
             {REQUIRED_COLUMNS.map((col) => (
               <span key={col} className="px-2 py-0.5 bg-white border border-amber-200 text-slate-700 font-mono text-[10px] rounded-md shadow-2xs">
@@ -303,15 +306,15 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
 
             <div>
               <h3 className="text-base sm:text-lg font-bold text-[#17365D]">
-                {file ? file.name : 'Upload Common Upload Form Dataset (CSV)'}
+                {file ? file.name : 'Upload paimana_projects Dataset (CSV)'}
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                Drag and drop your MoSPI .csv file here, or click to browse filesystem
+                Drag and drop your .csv file here, or click to browse filesystem
               </p>
             </div>
 
             <div className="text-[11px] text-slate-400 border border-slate-200 px-3 py-1 rounded-full bg-white font-medium">
-              Supported: MoSPI CUF Standard Schema v2.4 (.csv up to 50MB)
+              Supported: Supabase Table Schema (.csv up to 50MB)
             </div>
           </label>
         </div>
@@ -321,7 +324,7 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
       {parsing && (
         <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center flex flex-col items-center justify-center">
           <Zap className="w-6 h-6 text-[#F59A00] animate-bounce mb-2" />
-          <p className="text-xs font-bold text-[#17365D]">Verifying schema headers & parsing rows...</p>
+          <p className="text-xs font-bold text-[#17365D]">Verifying schema headers & matching projects...</p>
         </div>
       )}
 
@@ -331,7 +334,7 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-[#17365D]">CUF Dataset Validation Summary</h3>
+                <h3 className="text-lg font-bold text-[#17365D]">Dataset Validation Summary</h3>
                 <p className="text-xs text-slate-500">File: {summary.fileName}</p>
               </div>
               <button
@@ -381,7 +384,7 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
                   <thead>
                     <tr className="border-b border-slate-200 text-[#17365D]">
                       <th className="p-3 font-bold">Row #</th>
-                      <th className="p-3 font-bold">Project ID</th>
+                      <th className="p-3 font-bold">Project Name</th>
                       <th className="p-3 font-bold">Validation Error Description</th>
                     </tr>
                   </thead>
@@ -389,7 +392,7 @@ PIM-2004,Varanasi Ropeway Project,Urban,Uttar Pradesh,810,950,2025-05-31`;
                     {summary.invalidSamples.map((inv, i) => (
                       <tr key={i} className="border-b border-slate-100">
                         <td className="p-3 font-bold text-red-600">Row {inv.row}</td>
-                        <td className="p-3 font-semibold text-[#17365D]">{inv.projectId}</td>
+                        <td className="p-3 font-semibold text-[#17365D]">{inv.projectName}</td>
                         <td className="p-3 text-slate-500">{inv.reason}</td>
                       </tr>
                     ))}
