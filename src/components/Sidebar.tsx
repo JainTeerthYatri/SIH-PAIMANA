@@ -1,8 +1,9 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -27,23 +28,43 @@ interface SidebarProps {
   onCloseMobile?: () => void
 }
 
-interface NavItem {
-  path: string
-  label: string
-  icon: React.ElementType
-  badge?: string
-}
-
-interface NavGroup {
-  title: string
-  items: NavItem[]
-}
-
 export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname()
+  const [activeAlertCount, setActiveAlertCount] = useState<number>(0)
 
-  // 📂 Unke saare groups ko aapki Next.js App Router directory paths me map kar diya hai
-  const navGroups: NavGroup[] = [
+  // 🔄 Direct Real-Time Fetch for Alert Count
+  useEffect(() => {
+    async function fetchAlertCount() {
+      try {
+        const { count, error } = await supabase
+          .from('paimana_projects')
+          .select('*', { count: 'exact', head: true })
+          .gt('cost_overrun_cr', 0)
+
+        if (!error && count !== null) {
+          setActiveAlertCount(count)
+        }
+      } catch (err) {
+        console.warn('Sidebar alert fetch error:', err)
+      }
+    }
+
+    fetchAlertCount()
+
+    // 🔔 Realtime listener for live count updates
+    const channel = supabase
+      .channel('sidebar_alert_counter')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'paimana_projects' }, () => {
+        fetchAlertCount()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  const navGroups = [
     {
       title: 'OVERVIEW',
       items: [
@@ -64,7 +85,12 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
       title: 'INTELLIGENCE & ALERTS',
       items: [
         { path: '/dashboard/ai-analytics', label: 'Sector & State Analytics', icon: BarChart3 },
-        { path: '/dashboard/alert-center', label: 'Early Warning Center', icon: Bell, badge: '4' }
+        { 
+          path: '/dashboard/alert-center', 
+          label: 'Early Warning Center', 
+          icon: Bell, 
+          badge: activeAlertCount > 0 ? String(activeAlertCount) : undefined 
+        }
       ]
     },
     {
@@ -82,7 +108,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
     }
   ]
 
-  // 🔑 Aapka existing authentication & session cookies clear karne ka function
   const handleLogout = () => {
     document.cookie = "paimana_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
     document.cookie = "paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
@@ -95,7 +120,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         isOpen ? 'w-[265px]' : 'w-20'
       }`}
     >
-      {/* 🏛️ Header with PAIMANA Branding & Dynamic Collapse Button */}
       <div className={`p-4 flex items-center border-b border-white/10 ${isOpen ? 'justify-between' : 'justify-center'}`}>
         {isOpen ? (
           <div className="flex items-center gap-3">
@@ -122,11 +146,9 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         </button>
       </div>
 
-      {/* 🧭 Navigation Groups & Items */}
       <nav className="flex-1 px-3 py-4 space-y-4">
         {navGroups.map((group, idx) => (
           <div key={idx}>
-            {/* Section Title (Only visible when expanded) */}
             {isOpen && (
               <div className="text-[11px] font-extrabold text-white/45 tracking-wider px-3 mb-1.5 uppercase">
                 {group.title}
@@ -155,9 +177,8 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
                       {isOpen && <span className="truncate">{item.label}</span>}
                     </div>
 
-                    {/* Badge Indicator */}
                     {isOpen && item.badge && (
-                      <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
                         {item.badge}
                       </span>
                     )}
@@ -169,7 +190,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         ))}
       </nav>
 
-      {/* 📌 Footer Info Badge & Sign Out Button */}
       <div className="p-3 border-t border-white/10 space-y-2">
         {isOpen && (
           <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-[11px] text-white/70">
