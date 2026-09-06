@@ -107,6 +107,34 @@ function AnalyticsContent() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      
+      {/* Header wrapped inside a top-tier aesthetic card with spring hover */}
+      <motion.div 
+        className="card-paimana"
+        whileHover={{ scale: 1.008, y: -2 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '1.75rem 2rem', boxShadow: '0 8px 24px rgba(23,54,93,0.06)', border: '1px solid #EAE2D5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#F59A00', letterSpacing: '0.05em', textTransform: 'uppercase', backgroundColor: '#FFF9EF', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid #F59A00' }}>
+              DEEP ANALYTICS LAB
+            </span>
+          </div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17365D', margin: 0 }}>
+            Sector & State Infrastructure Risk Analytics
+          </h1>
+          <div style={{ fontSize: '0.85rem', color: '#718096', marginTop: '0.2rem' }}>
+            Cross-sectional risk distribution and multi-year historical delay acceleration trends
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1rem', backgroundColor: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+          <BarChart3 size={18} style={{ color: '#17365D' }} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#17365D' }}>Live Data Feed</span>
+        </div>
+      </motion.div>
+
       {/* Active Search Filter Banner */}
       {isFiltered && (
         <motion.div 
@@ -122,19 +150,6 @@ function AnalyticsContent() {
           </div>
         </motion.div>
       )}
-
-      {/* Header */}
-      <div>
-        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#F59A00', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          DEEP ANALYTICS LAB
-        </div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17365D' }}>
-          Sector & State Infrastructure Risk Analytics
-        </h1>
-        <div style={{ fontSize: '0.82rem', color: '#718096' }}>
-          Cross-sectional risk distribution and multi-year historical delay acceleration trends
-        </div>
-      </div>
 
       {/* Analytics Charts Grid with Spring & Hover Effects */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '1.5rem' }}>
