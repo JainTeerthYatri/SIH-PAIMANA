@@ -1,3 +1,5 @@
+'use client'
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { createClient } from '@supabase/supabase-js';
@@ -46,7 +48,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export const CostDrivers: React.FC = () => {
+export default function CostDriversPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialProjId = searchParams.get('project') || 'PIM-1001';
@@ -119,7 +121,6 @@ export const CostDrivers: React.FC = () => {
           }));
           setDrivers(formattedDrivers);
         } else {
-          // Fallback empty if no drivers configured for this specific project yet
           setDrivers([]);
         }
       } catch (err: any) {
@@ -504,4 +505,4 @@ export const CostDrivers: React.FC = () => {
       )}
     </div>
   );
-};
+}
