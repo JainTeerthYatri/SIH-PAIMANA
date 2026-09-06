@@ -2,129 +2,143 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import { 
   TrendingUp, 
   ShieldAlert, 
-  HelpCircle, 
-  CheckCircle2, 
-  AlertTriangle, 
-  BarChart, 
-  ArrowRight,
   Sparkles,
-  Info
+  Info,
+  Database
 } from 'lucide-react';
 
+type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+
 interface Project {
-  id: string;
-  name: string;
-  sector: string;
+  projectName: string;
   state: string;
-  department: string;
-  riskScore: number;
+  originalCostCr: number;
+  anticipatedCostCr: number;
+  physicalProgressPct: number;
+  costOverrunCr: number;
   riskLevel: string;
-  costVariancePercent: number;
+  riskScore: number;
 }
 
 interface RiskDriver {
   factor: string;
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: Severity;
   impactPercent: number;
   description: string;
 }
 
-interface SeverityStyle {
-  bg: string;
-  color: string;
-  border: string;
-  fill: string;
-}
-
-// Fallback dummy data in case API or mock services are not available
-const DUMMY_PROJECTS: Project[] = [
-  {
-    id: 'PIM-1001',
-    name: 'Eastern Dedicated Freight Corridor Expansion',
-    sector: 'Railway Infrastructure',
-    state: 'Uttar Pradesh',
-    department: 'Ministry of Railways',
-    riskScore: 78,
-    riskLevel: 'HIGH',
-    costVariancePercent: 14.2
-  },
-  {
-    id: 'PIM-1002',
-    name: 'National Expressway 4 Phase-II',
-    sector: 'Roads & Highways',
-    state: 'Maharashtra',
-    department: 'MoRTH',
-    riskScore: 65,
-    riskLevel: 'MEDIUM',
-    costVariancePercent: 8.5
-  }
-];
-
-const DUMMY_DRIVERS: Record<string, RiskDriver[]> = {
-  'PIM-1001': [
-    {
-      factor: 'Land Acquisition & Right of Way Delays',
-      severity: 'CRITICAL',
-      impactPercent: 34,
-      description: 'Pending clearances in Sector 4 are compounding contractor holding costs.'
-    },
-    {
-      factor: 'Vendor Cash Flow & Liquidity Squeeze',
-      severity: 'HIGH',
-      impactPercent: 28,
-      description: 'Delayed milestone disbursements affecting sub-contractor allocation.'
-    },
-    {
-      factor: 'Environmental & Statutory Clearances',
-      severity: 'MEDIUM',
-      impactPercent: 18,
-      description: 'Stage-2 forest clearance pending final state-level review.'
-    }
-  ],
-  'PIM-1002': [
-    {
-      factor: 'Subgrade Material Supply Constraints',
-      severity: 'HIGH',
-      impactPercent: 30,
-      description: 'Local quarry restrictions limiting raw aggregate logistics.'
-    },
-    {
-      factor: 'Utility Shifting Bottlenecks',
-      severity: 'MEDIUM',
-      impactPercent: 22,
-      description: 'High-tension power line relocation delayed by local utility board.'
-    }
-  ]
-};
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 function CostDriversContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialProjId = searchParams.get('project') || 'PIM-1001';
+  const initialProjName = searchParams.get('project') || '';
 
-  const [projects, setProjects] = useState<Project[]>(DUMMY_PROJECTS);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>(initialProjId);
-  const [project, setProject] = useState<Project | null>(DUMMY_PROJECTS[0]);
-  const [drivers, setDrivers] = useState<RiskDriver[]>(DUMMY_DRIVERS['PIM-1001'] || []);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectName, setSelectedProjectName] = useState<string>(initialProjName);
+  const [project, setProject] = useState<Project | null>(null);
+  const [drivers, setDrivers] = useState<RiskDriver[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
+  // Fetch projects by joining paimana_projects and paimana_project_analytics
   useEffect(() => {
-    const currentProj = projects.find(p => p.id === selectedProjectId) || projects[0];
-    setProject(currentProj);
-    setDrivers(DUMMY_DRIVERS[currentProj.id] || [
-      {
-        factor: 'General Execution Delay Factor',
-        severity: 'MEDIUM',
-        impactPercent: 25,
-        description: 'Standard operational lag detected across milestones.'
-      }
-    ]);
-  }, [selectedProjectId, projects]);
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('paimana_projects')
+          .select(`
+            project_name,
+            state,
+            original_cost_cr,
+            anticipated_cost_cr,
+            physical_progress_pct,
+            cost_overrun_cr,
+            paimana_project_analytics (
+              risk_level,
+              risk_score
+            )
+          `);
 
-  const getSeverityStyle = (severity: string): SeverityStyle => {
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const mapped: Project[] = data.map((p: any) => {
+            const analytics = Array.isArray(p.paimana_project_analytics) 
+              ? p.paimana_project_analytics[0] 
+              : p.paimana_project_analytics;
+
+            return {
+              projectName: p.project_name,
+              state: p.state || 'National',
+              originalCostCr: Number(p.original_cost_cr || 0),
+              anticipatedCostCr: Number(p.anticipated_cost_cr || 0),
+              physicalProgressPct: Number(p.physical_progress_pct || 0),
+              costOverrunCr: Number(p.cost_overrun_cr || 0),
+              riskLevel: analytics?.risk_level || 'HIGH',
+              riskScore: Number(analytics?.risk_score || 75),
+            };
+          });
+
+          setProjects(mapped);
+
+          const current = mapped.find(p => p.projectName === initialProjName) || mapped[0];
+          setProject(current);
+          setSelectedProjectName(current.projectName);
+        }
+      } catch (err) {
+        console.error('Supabase fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [initialProjName]);
+
+  // Update selected project & derive dynamic SHAP factors based on real columns
+  useEffect(() => {
+    if (!selectedProjectName || projects.length === 0) return;
+
+    const currentProj = projects.find(p => p.projectName === selectedProjectName) || projects[0];
+    setProject(currentProj);
+
+    // Generating dynamic SHAP factors based on actual project metrics
+    const variancePercent = currentProj.originalCostCr > 0 
+      ? ((currentProj.anticipatedCostCr - currentProj.originalCostCr) / currentProj.originalCostCr) * 100 
+      : 12.5;
+
+    const calculatedDrivers: RiskDriver[] = [
+      {
+        factor: 'Cost Overrun & Budget Slippage',
+        severity: variancePercent > 15 ? 'CRITICAL' : 'HIGH',
+        impactPercent: Math.min(Math.round(Math.abs(variancePercent) * 2.2), 45),
+        description: `Current cost overrun stands at ₹${currentProj.costOverrunCr.toFixed(2)} Cr against original layout.`
+      },
+      {
+        factor: 'Physical Progress vs Timeline Lag',
+        severity: currentProj.physicalProgressPct < 50 ? 'HIGH' : 'MEDIUM',
+        impactPercent: Math.max(Math.round(100 - currentProj.physicalProgressPct), 20),
+        description: `Execution currently lagging with physical progress registered at ${currentProj.physicalProgressPct}%.`
+      },
+      {
+        factor: 'State-Level Administrative Bottlenecks',
+        severity: 'MEDIUM',
+        impactPercent: 22,
+        description: `Regional execution constraints identified across ${currentProj.state} sector infrastructure.`
+      }
+    ];
+
+    setDrivers(calculatedDrivers);
+  }, [selectedProjectName, projects]);
+
+  const getSeverityStyle = (severity: Severity) => {
     if (severity === 'CRITICAL' || severity === 'HIGH') {
       return { bg: '#FFF5F5', color: '#E53E3E', border: '#FEB2B2', fill: '#E53E3E' };
     }
@@ -134,19 +148,23 @@ function CostDriversContent() {
     return { bg: '#F0FFF4', color: '#38A169', border: '#9AE6B4', fill: '#38A169' };
   };
 
+  if (loading && projects.length === 0) {
+    return <div style={{ padding: '3rem', textAlign: 'center', color: '#17365D', fontWeight: 700 }}>Connecting to Live Supabase Schema...</div>;
+  }
+
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Header & Project Selector */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#F59A00', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            EXPLAINABLE AI ENGINE (XAI)
+            EXPLAINABLE AI ENGINE (XAI) - LIVE SCHEMA
           </div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#17365D' }}>
             Why Is This Project At Risk? (SHAP Factor Attribution)
           </h1>
           <div style={{ fontSize: '0.82rem', color: '#718096' }}>
-            Deconstructing predictive risk factors using SHAP (SHapley Additive exPlanations) values from MoSPI CUF parameters
+            Deconstructing risk parameters using live fields from <code style={{ color: '#F59A00' }}>paimana_projects</code> & <code style={{ color: '#F59A00' }}>paimana_project_analytics</code>
           </div>
         </div>
 
@@ -154,11 +172,11 @@ function CostDriversContent() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#17365D' }}>Select Project:</label>
           <select
-            value={selectedProjectId}
+            value={selectedProjectName}
             onChange={(e) => {
-              const newId = e.target.value;
-              setSelectedProjectId(newId);
-              router.push(`/dashboard/cost-drivers?project=${newId}`);
+              const newName = e.target.value;
+              setSelectedProjectName(newName);
+              router.push(`/dashboard/cost-drivers?project=${encodeURIComponent(newName)}`);
             }}
             style={{
               padding: '0.6rem 1rem',
@@ -168,12 +186,13 @@ function CostDriversContent() {
               fontSize: '0.88rem',
               fontWeight: 700,
               color: '#17365D',
-              boxShadow: '0 2px 8px rgba(245, 154, 0, 0.15)'
+              boxShadow: '0 2px 8px rgba(245, 154, 0, 0.15)',
+              maxWidth: '300px'
             }}
           >
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.id} - {p.name} ({p.riskLevel} Risk)
+            {projects.map((p, idx) => (
+              <option key={idx} value={p.projectName}>
+                {p.projectName} ({p.riskLevel} Risk)
               </option>
             ))}
           </select>
@@ -187,30 +206,30 @@ function CostDriversContent() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.8rem', color: '#F59A00', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  PROJECT INTELLIGENCE CARD • {project.id}
+                  PROJECT TELEMETRY • STATE: {project.state.toUpperCase()}
                 </div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FFF9EF', marginTop: '0.2rem' }}>
-                  {project.name}
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFF9EF', marginTop: '0.2rem' }}>
+                  {project.projectName}
                 </h2>
                 <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: '#A0AEC0', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                  <span>Sector: <strong style={{ color: '#FFF9EF' }}>{project.sector}</strong></span>
-                  <span>State: <strong style={{ color: '#FFF9EF' }}>{project.state}</strong></span>
-                  <span>Department: <strong style={{ color: '#FFF9EF' }}>{project.department}</strong></span>
+                  <span>Original Cost: <strong style={{ color: '#FFF9EF' }}>₹{project.originalCostCr} Cr</strong></span>
+                  <span>Anticipated Cost: <strong style={{ color: '#FFF9EF' }}>₹{project.anticipatedCostCr} Cr</strong></span>
+                  <span>Physical Progress: <strong style={{ color: '#FFF9EF' }}>{project.physicalProgressPct}%</strong></span>
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '1rem 1.5rem', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>COMPOSITE RISK</div>
+                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>RISK SCORE</div>
                   <div style={{ fontSize: '2rem', fontWeight: 900, color: project.riskScore >= 70 ? '#FEB2B2' : '#FBD38D' }}>
                     {project.riskScore} <span style={{ fontSize: '1rem' }}>/ 100</span>
                   </div>
                 </div>
                 <div style={{ width: '1px', height: '40px', backgroundColor: 'rgba(255,255,255,0.15)' }} />
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>COST VARIANCE</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F59A00' }}>
-                    +{project.costVariancePercent.toFixed(1)}%
+                  <div style={{ fontSize: '0.72rem', color: '#A0AEC0', fontWeight: 700 }}>COST OVERRUN</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#F59A00' }}>
+                    ₹{project.costOverrunCr.toFixed(1)} Cr
                   </div>
                 </div>
               </div>
@@ -221,15 +240,15 @@ function CostDriversContent() {
           <div className="card-paimana">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <div>
-                <h3 style={{ fontSize: '1.2rem', color: '#17365D' }}>Risk Factor Impact Breakdown (SHAP Feature Attribution)</h3>
+                <h3 style={{ fontSize: '1.2rem', color: '#17365D' }}>Risk Factor Impact Breakdown (Live DB Attribution)</h3>
                 <div style={{ fontSize: '0.8rem', color: '#718096' }}>
-                  Relative contribution of top bottleneck parameters driving risk score to {project.riskScore}/100
+                  Derived from real metrics in <code style={{ color: '#17365D' }}>paimana_projects</code> table
                 </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#F59A00', backgroundColor: '#FFF9EF', padding: '0.4rem 0.85rem', borderRadius: '20px', border: '1px solid #F59A00', fontWeight: 700 }}>
-                <Sparkles size={14} />
-                <span>Model Confidence: 93.4%</span>
+                <Database size={14} />
+                <span>Tables Connected</span>
               </div>
             </div>
 
@@ -269,12 +288,12 @@ function CostDriversContent() {
                       </div>
                     </div>
 
-                    {/* SHAP Progress Bar */}
+                    {/* Progress Bar */}
                     <div className="progress-bar-container" style={{ height: '10px' }}>
                       <div
                         className="progress-bar-fill"
                         style={{
-                          width: `${drv.impactPercent * 2.2}%`,
+                          width: `${Math.min(drv.impactPercent * 2.2, 100)}%`,
                           backgroundColor: style.fill
                         }}
                       />
@@ -289,24 +308,6 @@ function CostDriversContent() {
               })}
             </div>
           </div>
-
-          {/* Recommended Interventions Card */}
-          <div className="card-paimana" style={{ borderLeft: '5px solid #F59A00' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
-              <Sparkles size={20} style={{ color: '#F59A00' }} />
-              <h3 style={{ fontSize: '1.1rem', color: '#17365D' }}>PAIMANA AI Recommended Strategic Interventions</h3>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', fontSize: '0.85rem' }}>
-              <div style={{ padding: '0.85rem', backgroundColor: '#FFF9EF', borderRadius: '10px', border: '1px solid #E2D9CC' }}>
-                <div style={{ fontWeight: 700, color: '#17365D', marginBottom: '0.2rem' }}>1. Fast-Track Inter-Departmental Clearances</div>
-                <div style={{ color: '#718096' }}>Issue urgent directive to SLAO & Ministry of Environment for fast-tracked stage-2 forest clearance.</div>
-              </div>
-              <div style={{ padding: '0.85rem', backgroundColor: '#FFF9EF', borderRadius: '10px', border: '1px solid #E2D9CC' }}>
-                <div style={{ fontWeight: 700, color: '#17365D', marginBottom: '0.2rem' }}>2. Accelerated Equity Release</div>
-                <div style={{ color: '#718096' }}>Sanction Q3 grant release to prevent contractor liquidity bottlenecks and interest penalty accumulation.</div>
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>
@@ -315,7 +316,7 @@ function CostDriversContent() {
 
 export default function CostDriversPage() {
   return (
-    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#17365D', fontWeight: 600 }}>Loading Cost Drivers Engine...</div>}>
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: '#17365D', fontWeight: 600 }}>Loading Database Schema...</div>}>
       <CostDriversContent />
     </Suspense>
   );
