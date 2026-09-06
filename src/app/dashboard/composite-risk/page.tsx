@@ -1,528 +1,334 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import {
-  Bell,
-  Clock,
-  ShieldAlert,
-  Search,
-  X,
-  Sparkles,
-  Activity,
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  ShieldCheck
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Sparkles, ShieldAlert, AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Search, SlidersHorizontal, Activity } from 'lucide-react'
 
-type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
-type AlertStatus = 'OPEN' | 'ACKNOWLEDGED' | 'IN_PROGRESS' | 'RESOLVED'
-type UserRole = 'officer' | 'admin' | 'super-admin'
-
-interface AlertItem {
-  id: string | number
-  projectId: string
+interface RiskProject {
   projectName: string
-  title: string
-  explanation: string
-  severity: Severity
-  status: AlertStatus
-  recommendedAction: string
-  timestamp: string
+  state: string
+  originalCost: number
+  anticipatedCost: number
+  cumulativeExp: number
+  physicalProgress: number
+  costOverrun: number
+  estimatedDelayMonths: string
+  riskLevel: 'HIGH' | 'MEDIUM' | 'LOW'
+  riskScore: number
+  anomalies: string[]
 }
 
-export default function AlertCenterPage() {
-  const [alerts, setAlerts] = useState<AlertItem[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [searchQuery, setSearchQuery] = useState<string>('')
-  const [filterSeverity, setFilterSeverity] = useState<'ALL' | Severity>('ALL')
-  const [filterStatus, setFilterStatus] = useState<'ALL' | AlertStatus>('ALL')
+export default function AIAnalyticsPage() {
+  const [loading, setLoading] = useState(true)
+  const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 })
+  const [projects, setProjects] = useState<RiskProject[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterRisk, setFilterRisk] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL')
   
-  // 🔐 Security Role State
-  const [userRole, setUserRole] = useState<UserRole>('admin')
-
-  // 📄 Database Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalCount, setTotalCount] = useState(0)
-  const itemsPerPage = 15
+  const itemsPerPage = 6
 
-  // 📊 Live Counts State
-  const [counts, setCounts] = useState({
-    total: 0,
-    open: 0,
-    acknowledged: 0,
-    in_progress: 0,
-    resolved: 0
-  })
-
-  // 🔐 Fetch User Role
   useEffect(() => {
-    async function fetchUserRole() {
+    async function fetchAllChunks() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          const roleFromMeta = (session.user.user_metadata?.role as UserRole) || 'officer'
-          setUserRole(roleFromMeta)
+        let offset = 0;
+        const limit = 25; 
+        let hasMore = true;
+        let accumulated: RiskProject[] = [];
+
+        while (hasMore) {
+          const res = await fetch(`/api/ai/analyze-risks?offset=${offset}&limit=${limit}`);
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Server returned status ${res.status}`);
+          }
+          const data = await res.json();
+
+          if (data.success && Array.isArray(data.analysis)) {
+            accumulated = [...accumulated, ...data.analysis];
+            setProjects([...accumulated].sort((a, b) => b.riskScore - a.riskScore));
+            setLoadingProgress({ loaded: accumulated.length, total: data.total || 819 });
+            
+            offset = data.nextOffset;
+            hasMore = data.hasMore;
+
+            if (hasMore) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+          } else {
+            break;
+          }
         }
       } catch (err) {
-        console.warn('User role fetch notice:', err)
+        console.error('Failed to load AI analytics chunks:', err);
+      } finally {
+        setLoading(false);
       }
     }
-    fetchUserRole()
+
+    fetchAllChunks();
   }, [])
 
-  // 🔄 Fetch Projects & Merge Status from isolated 'alert_statuses' table
-  const fetchAlertsAndCounts = useCallback(async () => {
-    try {
-      setLoading(true)
-
-      // 1. Fetch all projects with overrun
-      const { data: projectsData, error: prjError } = await supabase
-        .from('paimana_projects')
-        .select('*')
-        .gt('cost_overrun_cr', 0)
-        .order('cost_overrun_cr', { ascending: false })
-
-      if (prjError) throw prjError
-
-      // 2. Fetch all statuses from NAYI TABLE 'alert_statuses'
-      const { data: statusData, error: stError } = await supabase
-        .from('alert_statuses')
-        .select('project_id, status')
-
-      if (stError) {
-        console.warn('Status table read notice:', stError)
-      }
-
-      // Map status table entries to dictionary
-      const statusMap = new Map<string, AlertStatus>()
-      if (statusData) {
-        statusData.forEach((st) => {
-          if (st.project_id) {
-            statusMap.set(String(st.project_id), st.status as AlertStatus)
-          }
-        })
-      }
-
-      if (projectsData) {
-        // Build dynamic alert items with strict ID fallback
-        const allAlerts: AlertItem[] = projectsData.map((item, idx) => {
-          // 🛡️ Fail-safe ID Extraction
-          const rawId = item.id ?? item.ID ?? item.project_id ?? item.s_no ?? `PRJ-${idx + 1}`
-          const overrun = item.cost_overrun_cr || 0
-          const origCost = item.original_cost_cr || 1
-
-          let sev: Severity = 'LOW'
-          if (overrun > 500 || (overrun / origCost) > 0.3) {
-            sev = 'CRITICAL'
-          } else if (overrun > 100) {
-            sev = 'HIGH'
-          } else if (overrun > 0) {
-            sev = 'MEDIUM'
-          }
-
-          // Fetch status from new table or default to OPEN
-          const currentStatus: AlertStatus = statusMap.get(String(rawId)) || 'OPEN'
-
-          return {
-            id: rawId,
-            projectId: `PRJ-${rawId}`,
-            projectName: item.project_name || 'Central Infrastructure Project',
-            title: `Cost Overrun Trigger: +₹${overrun.toLocaleString()} Cr Escalation`,
-            explanation: `Project in ${item.State || 'Multi-States'} reported ₹${overrun.toLocaleString()} Cr cost overrun over ₹${(item.original_cost_cr || 0).toLocaleString()} Cr sanctioned budget.`,
-            severity: sev,
-            status: currentStatus,
-            recommendedAction: overrun > 500
-              ? 'Initiate High-Level Inter-Ministerial Committee Review & Expenditure Audit.'
-              : overrun > 100
-              ? 'Issue formal query to Project Monitoring Unit and fast-track land clearance.'
-              : 'Request updated Common Upload Form (CUF) monthly progress report.',
-            timestamp: `${(idx % 12) + 1} hours ago`
-          }
-        })
-
-        // 📊 Header Metric Aggregation
-        let opn = 0, ack = 0, inp = 0, res = 0
-        allAlerts.forEach(a => {
-          if (a.status === 'OPEN') opn++
-          else if (a.status === 'ACKNOWLEDGED') ack++
-          else if (a.status === 'IN_PROGRESS') inp++
-          else if (a.status === 'RESOLVED') res++
-        })
-
-        setCounts({
-          total: allAlerts.length,
-          open: opn,
-          acknowledged: ack,
-          in_progress: inp,
-          resolved: res
-        })
-
-        // Filters
-        let filtered = allAlerts
-
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase()
-          filtered = filtered.filter(a => 
-            a.projectName.toLowerCase().includes(q) || 
-            a.explanation.toLowerCase().includes(q)
-          )
-        }
-
-        if (filterStatus !== 'ALL') {
-          filtered = filtered.filter(a => a.status === filterStatus)
-        }
-
-        if (filterSeverity !== 'ALL') {
-          filtered = filtered.filter(a => a.severity === filterSeverity)
-        }
-
-        setTotalCount(filtered.length)
-
-        // Paginate
-        const from = (currentPage - 1) * itemsPerPage
-        const paginated = filtered.slice(from, from + itemsPerPage)
-
-        setAlerts(paginated)
-      }
-    } catch (err) {
-      console.error('Error fetching alerts:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [currentPage, searchQuery, filterStatus, filterSeverity])
-
-  // Initial Load + Realtime Listener on Nayi Table 'alert_statuses'
   useEffect(() => {
-    fetchAlertsAndCounts()
-
-    const channel = supabase
-      .channel('realtime_alert_statuses')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'alert_statuses' },
-        () => {
-          fetchAlertsAndCounts()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [fetchAlertsAndCounts])
-
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val)
     setCurrentPage(1)
-  }
+  }, [searchTerm, filterRisk])
 
-  // ⚡ Status Save with Strict project_id Check
-  const handleStatusUpdate = async (alertId: string | number, newStatus: AlertStatus) => {
-    if (!canChangeStatus) return
+  const filtered = projects.filter(p => {
+    const matchesSearch = p.projectName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.state.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesRisk = filterRisk === 'ALL' || p.riskLevel === filterRisk
+    return matchesSearch && matchesRisk
+  })
 
-    if (alertId === undefined || alertId === null || alertId === '') {
-      console.error('Cannot update status: Invalid alertId provided', alertId)
-      return
-    }
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-    const stringifiedId = String(alertId)
-
-    // Optimistic UI update
-    setAlerts(prev => prev.map(a => String(a.id) === stringifiedId ? { ...a, status: newStatus } : a))
-
-    // Safe Upsert with Non-null project_id
-    const { error } = await supabase
-      .from('alert_statuses')
-      .upsert(
-        { 
-          project_id: stringifiedId, 
-          status: newStatus, 
-          updated_at: new Date().toISOString() 
-        },
-        { onConflict: 'project_id' }
-      )
-
-    if (error) {
-      console.error('Failed to update status in alert_statuses:', error)
-      fetchAlertsAndCounts()
-    } else {
-      fetchAlertsAndCounts()
-    }
-  }
-
-  const canChangeStatus = userRole === 'admin' || userRole === 'super-admin'
-  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1
+  const highRiskCount = projects.filter(p => p.riskLevel === 'HIGH').length
+  const medRiskCount = projects.filter(p => p.riskLevel === 'MEDIUM').length
+  const lowRiskCount = projects.filter(p => p.riskLevel === 'LOW').length
 
   return (
-    <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen text-slate-900 font-sans space-y-6">
-      
-      {/* 🏛️ HEADER */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-        
-        {/* Top Meta Line */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-black text-[#F59A00] tracking-wider uppercase">
-              EARLY INTERVENTION ENGINE
-            </span>
-            <span className="w-1 h-1 bg-slate-300 rounded-full" />
-            <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-extrabold rounded-md border border-red-100 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              LIVE REALTIME ENGINE
-            </span>
+    <div className="p-4 sm:p-8 bg-gradient-to-br from-slate-50 via-blue-50/20 to-indigo-50/30 min-h-screen text-slate-900 font-sans">
+      {/* Header Section */}
+      <div className="mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-slate-200/80 shadow-xs">
+        <div className="space-y-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold tracking-wide uppercase">
+            <Sparkles className="w-3.5 h-3.5 text-blue-600 animate-pulse" />
+            Neural Infrastructure Intelligence
           </div>
-
-          <div className={`px-2.5 py-0.5 text-[10px] font-extrabold rounded-md flex items-center gap-1 border uppercase ${
-            userRole === 'super-admin' 
-              ? 'bg-purple-50 text-purple-700 border-purple-200' 
-              : userRole === 'admin'
-              ? 'bg-sky-50 text-sky-700 border-sky-200'
-              : 'bg-slate-100 text-slate-600 border-slate-200'
-          }`}>
-            <ShieldCheck className="w-3 h-3" /> Role: {userRole}
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+            Project-Wise AI Insights & Audit
+          </h1>
+          <p className="text-sm text-slate-500 font-medium">
+            100% LLM-driven predictive risk scoring and real-time anomaly detection engine.
+          </p>
         </div>
 
-        {/* Title + Compact Metric Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#17365D] tracking-tight">
-              Intelligent Alert Center
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Real-time proactive cost escalation triggers from MoSPI database
-            </p>
+        {/* Mini Stats Grid */}
+        <div className="grid grid-cols-3 gap-2.5 sm:flex sm:items-center">
+          <div className="bg-red-50/80 border border-red-100 px-4 py-2.5 rounded-2xl text-center">
+            <span className="block text-[10px] font-bold text-red-600 uppercase tracking-wider">High Risk</span>
+            <span className="text-lg font-black text-red-700">{highRiskCount}</span>
           </div>
-
-          {/* 📊 ACCURATE METRIC BAR */}
-          <div className="flex items-center gap-1 bg-slate-50/90 p-1.5 rounded-xl border border-slate-200/80 shrink-0 self-start lg:self-auto overflow-x-auto max-w-full">
-            
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#17365D] text-white rounded-lg text-xs font-bold shrink-0 transition-transform hover:scale-[1.02]">
-              <span className="text-[10px] text-[#F59A00] uppercase tracking-wider font-extrabold">TOTAL ALERTS</span>
-              <span className="bg-white/20 px-2 py-0.5 rounded-md text-xs font-black">{counts.total}</span>
-            </div>
-
-            <div className="h-4 w-[1px] bg-slate-200 my-auto mx-1 shrink-0" />
-
-            {/* OPEN */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
-              <span className="text-slate-500 text-[11px] font-bold">OPEN</span>
-              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.open}</span>
-            </div>
-
-            {/* ACKNOWLEDGED */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
-              <span className="text-slate-500 text-[11px] font-bold">ACKNOWLEDGED</span>
-              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.acknowledged}</span>
-            </div>
-
-            {/* IN PROGRESS */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-700 rounded-lg border border-slate-200/70 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
-              <span className="text-slate-500 text-[11px] font-bold">IN PROGRESS</span>
-              <span className="px-2 py-0.5 bg-sky-100 text-sky-800 text-[11px] font-black rounded-md">{counts.in_progress}</span>
-            </div>
-
-            {/* RESOLVED */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 text-xs font-semibold shrink-0 transition-all hover:scale-[1.02]">
-              <span className="text-emerald-800 text-[11px] font-bold">RESOLVED</span>
-              <span className="px-2 py-0.5 bg-emerald-700 text-white text-[11px] font-black rounded-md">{counts.resolved}</span>
-            </div>
-
+          <div className="bg-amber-50/80 border border-amber-100 px-4 py-2.5 rounded-2xl text-center">
+            <span className="block text-[10px] font-bold text-amber-600 uppercase tracking-wider">Medium</span>
+            <span className="text-lg font-black text-amber-700">{medRiskCount}</span>
+          </div>
+          <div className="bg-emerald-50/80 border border-emerald-100 px-4 py-2.5 rounded-2xl text-center">
+            <span className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Low Risk</span>
+            <span className="text-lg font-black text-emerald-700">{lowRiskCount}</span>
           </div>
         </div>
-
       </div>
 
-      {/* 🔍 Search Bar & Filters */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all duration-300 space-y-4">
-        <div className="relative">
+      {/* Interactive Controls & Filters */}
+      <div className="mb-8 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search alerts by project name or state..."
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-[#FFF9EF] border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F59A00]/30 focus:border-[#F59A00] text-sm font-medium transition-all duration-200"
+          <input 
+            type="text" 
+            placeholder="Search projects or filter by state name..." 
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm transition-all"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-          {searchQuery && (
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 bg-slate-50 p-1.5 rounded-xl border border-slate-200/60">
+          <SlidersHorizontal className="w-4 h-4 text-slate-400 ml-2 mr-1 hidden sm:block" />
+          {(['ALL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((lvl) => (
             <button
-              onClick={() => handleSearchChange('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-transform duration-200 hover:scale-125"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Dynamic Filters */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-2 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[#17365D] mr-1">Severity:</span>
-            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const).map((sev) => (
-              <button
-                key={sev}
-                onClick={() => { setFilterSeverity(sev); setCurrentPage(1); }}
-                className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
-                  filterSeverity === sev
-                    ? 'bg-[#17365D] text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                {sev}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[#17365D] mr-1">Status:</span>
-            {(['ALL', 'OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => { setFilterStatus(st); setCurrentPage(1); }}
-                className={`px-3.5 py-1.5 rounded-full font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
-                  filterStatus === st
-                    ? 'bg-[#F59A00] text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                {st.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 🚨 Alert Cards List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
-            <Activity className="w-7 h-7 text-[#17365D] animate-spin mx-auto" />
-            <p className="text-xs font-bold text-[#17365D]">Loading real-time alerts...</p>
-          </div>
-        ) : alerts.length > 0 ? (
-          alerts.map((alert) => (
-            <div
-              key={alert.id}
-              className={`bg-white rounded-2xl p-5 border-l-8 border border-slate-200/80 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.005] hover:shadow-xl space-y-3 ${
-                alert.severity === 'CRITICAL'
-                  ? 'border-l-red-600'
-                  : alert.severity === 'HIGH'
-                  ? 'border-l-amber-500'
-                  : 'border-l-emerald-500'
+              key={lvl}
+              onClick={() => setFilterRisk(lvl)}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap shadow-xs ${
+                filterRisk === lvl 
+                  ? lvl === 'HIGH' ? 'bg-red-600 text-white shadow-red-500/20' 
+                  : lvl === 'MEDIUM' ? 'bg-amber-500 text-white shadow-amber-500/20' 
+                  : lvl === 'LOW' ? 'bg-emerald-600 text-white shadow-emerald-500/20'
+                  : 'bg-blue-600 text-white shadow-blue-500/20'
+                  : 'text-slate-600 hover:bg-slate-200/60 bg-transparent shadow-none'
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-transform duration-200 hover:scale-105 ${
-                      alert.severity === 'CRITICAL'
-                        ? 'bg-red-100 text-red-700 border border-red-200'
-                        : alert.severity === 'HIGH'
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                    }`}
-                  >
-                    {alert.severity}
-                  </span>
-                  <span className="text-xs font-bold text-[#F59A00]">
-                    {alert.projectId} • {alert.projectName}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs font-semibold text-slate-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{alert.timestamp}</span>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-base font-bold text-[#17365D] leading-snug">
-                  {alert.title}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
-                  {alert.explanation}
-                </p>
-              </div>
-
-              <div className="p-3 bg-[#FFF9EF] rounded-xl border border-amber-200/60 text-xs font-semibold text-[#17365D] flex items-start gap-2 transition-all duration-200 hover:bg-amber-50/80">
-                <Sparkles className="w-4 h-4 text-[#F59A00] shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-extrabold text-[#F59A00] uppercase block text-[10px]">
-                    Recommended Action
-                  </span>
-                  {alert.recommendedAction}
-                </div>
-              </div>
-
-              {/* 🔒 STATUS CHANGE SECTION */}
-              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="font-semibold text-slate-500 flex items-center gap-2">
-                  <span>Current Status:</span>
-                  <span className="font-extrabold text-[#17365D] uppercase px-2.5 py-1 bg-slate-100 rounded-md border border-slate-200">
-                    {alert.status.replace('_', ' ')}
-                  </span>
-                </div>
-
-                {canChangeStatus ? (
-                  <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
-                    {(['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED'] as const).map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => handleStatusUpdate(alert.id, st)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all duration-200 ease-out hover:scale-105 active:scale-95 cursor-pointer ${
-                          alert.status === st
-                            ? 'bg-[#F59A00] text-white shadow-xs'
-                            : 'bg-slate-100 text-[#17365D] hover:bg-slate-200'
-                        }`}
-                      >
-                        Set {st.replace('_', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80">
-                    <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Status change restricted to Admin & Super-Admin</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="p-10 bg-white rounded-2xl border border-slate-200 text-center space-y-2">
-            <ShieldAlert className="w-8 h-8 text-slate-400 mx-auto" />
-            <p className="text-sm font-bold text-[#17365D]">No alerts match selected filters</p>
-          </div>
-        )}
+              {lvl} RISK
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* 📟 Pagination Footer */}
-      {!loading && totalCount > itemsPerPage && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-600 shadow-xs">
-          <div>
-            Showing <span className="font-bold text-[#17365D]">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-bold text-[#17365D]">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of <span className="font-bold text-[#17365D]">{totalCount}</span> total alerts
+      {/* Initial Loading Skeleton */}
+      {loading && projects.length === 0 ? (
+        <div className="p-20 text-center bg-white border border-slate-200 rounded-3xl shadow-xs flex flex-col items-center justify-center gap-5">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute w-20 h-20 bg-blue-500/20 rounded-full animate-ping"></div>
+            <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/40">
+              <Sparkles className="w-8 h-8 text-white animate-pulse" />
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1 transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:border-[#17365D] hover:text-[#17365D]"
-            >
-              <ChevronLeft className="w-4 h-4" /> Prev
-            </button>
-            <span className="font-bold text-[#17365D] px-2">Page {currentPage} of {totalPages}</span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer font-bold flex items-center gap-1 transition-all duration-200 ease-out hover:scale-105 active:scale-95 hover:border-[#17365D] hover:text-[#17365D]"
-            >
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
+          <div className="space-y-1">
+            <p className="text-lg font-black text-slate-900">Initializing Neural Audit Engine...</p>
+            <p className="text-xs text-slate-400 font-medium">Connecting to Gemini AI and executing high-speed infrastructure parallel parsing</p>
           </div>
         </div>
+      ) : (
+        <>
+          {/* Live Progress Bar during Chunk Loading */}
+          {loading && (
+            <div className="mb-8 bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 text-white rounded-3xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center backdrop-blur-md shadow-inner">
+                  <Activity className="w-6 h-6 text-cyan-400 animate-spin" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+                    <p className="text-xs font-black text-cyan-300 uppercase tracking-wider">Live AI Model Execution</p>
+                  </div>
+                  <p className="text-sm font-medium text-slate-200 mt-0.5">
+                    Stream processed <span className="font-bold text-white">{loadingProgress.loaded}</span> of <span className="font-bold text-white">{loadingProgress.total || 819}</span> infrastructure projects in turbo stream mode...
+                  </p>
+                </div>
+              </div>
+              <div className="w-full md:w-64 bg-white/10 rounded-full h-3 overflow-hidden p-0.5 border border-white/10 relative z-10">
+                <div 
+                  className="bg-gradient-to-r from-cyan-400 to-blue-500 h-full rounded-full transition-all duration-300 shadow-lg shadow-cyan-500/50" 
+                  style={{ width: `${Math.round((loadingProgress.loaded / (loadingProgress.total || 819)) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Empty Filter State */}
+          {filtered.length === 0 ? (
+            <div className="p-16 text-center bg-white border border-slate-200 rounded-3xl shadow-xs space-y-2">
+              <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+                <Search className="w-6 h-6" />
+              </div>
+              <p className="text-base font-bold text-slate-800">No matching infrastructure found</p>
+              <p className="text-xs text-slate-400">Try tweaking your search keywords or resetting your risk filters.</p>
+            </div>
+          ) : (
+            /* Projects Grid */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {paginated.map((project, idx) => (
+                <div 
+                  key={idx} 
+                  className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs hover:shadow-xl hover:border-blue-500/30 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  
+                  <div>
+                    {/* Card Top Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[11px] font-extrabold tracking-wider uppercase px-3 py-1 rounded-xl bg-slate-100 text-slate-600 border border-slate-200/60 shadow-xs">
+                        {project.state}
+                      </span>
+                      <span className={`text-xs font-black px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-xs ${
+                        project.riskLevel === 'HIGH' ? 'bg-red-50 text-red-700 border border-red-200' :
+                        project.riskLevel === 'MEDIUM' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                        'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {project.riskLevel === 'HIGH' ? <ShieldAlert className="w-4 h-4 text-red-600" /> : 
+                         project.riskLevel === 'MEDIUM' ? <AlertTriangle className="w-4 h-4 text-amber-600" /> : 
+                         <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                        {project.riskLevel} RISK
+                      </span>
+                    </div>
+
+                    <h3 className="text-base font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-snug mb-5">
+                      {project.projectName}
+                    </h3>
+
+                    {/* Metric Highlights */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">Physical Progress</p>
+                          <p className="text-lg font-black text-blue-600 mt-0.5">{project.physicalProgress}%</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-blue-100/60 flex items-center justify-center text-blue-600 font-bold text-xs">
+                          {project.physicalProgress}%
+                        </div>
+                      </div>
+                      <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase font-black tracking-wider">AI Risk Score</p>
+                          <p className="text-lg font-black text-slate-900 mt-0.5">{project.riskScore}<span className="text-xs text-slate-400">/100</span></p>
+                        </div>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs ${
+                          project.riskScore > 70 ? 'bg-red-100 text-red-700' : project.riskScore > 40 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {project.riskScore}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Financial Breakdown */}
+                    <div className="grid grid-cols-4 gap-2 mb-5 text-center">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-xs">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Original</p>
+                        <p className="text-xs font-bold text-slate-800 mt-1">₹{project.originalCost}Cr</p>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-xs">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Anticipated</p>
+                        <p className="text-xs font-bold text-slate-800 mt-1">₹{project.anticipatedCost}Cr</p>
+                      </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-100 shadow-xs">
+                        <p className="text-[9px] text-slate-400 uppercase font-black tracking-wider">Overrun</p>
+                        <p className="text-xs font-bold text-red-600 mt-1">₹{project.costOverrun}Cr</p>
+                      </div>
+                      <div className="bg-amber-50/60 p-2.5 rounded-xl border border-amber-100 shadow-xs">
+                        <p className="text-[9px] text-amber-600 uppercase font-black tracking-wider">Delay</p>
+                        <p className="text-xs font-bold text-amber-800 mt-1 truncate">{project.estimatedDelayMonths}</p>
+                      </div>
+                    </div>
+
+                    {/* AI Audit Findings */}
+                    <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200/60 shadow-inner">
+                      <p className="text-xs font-black text-slate-600 uppercase tracking-wide mb-2.5 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" /> AI-Generated Audit Findings
+                      </p>
+                      <div className="space-y-2">
+                        {project.anomalies?.map((anomaly, i) => (
+                          <div key={i} className="text-xs text-slate-700 bg-white px-3 py-2 rounded-xl border border-slate-200/80 shadow-2xs flex items-start gap-2.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0"></span>
+                            <span className="leading-relaxed font-medium">{anomaly}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-8 px-6 py-4 bg-white border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+              <p className="text-xs text-slate-500 font-medium">
+                Showing page <span className="font-bold text-slate-800">{currentPage}</span> of <span className="font-bold text-slate-800">{totalPages}</span> 
+                <span className="text-slate-300 mx-2">•</span> 
+                Total <span className="font-bold text-slate-800">{filtered.length}</span> projects matched
+              </p>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 flex items-center gap-1.5 transition-all shadow-xs"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
