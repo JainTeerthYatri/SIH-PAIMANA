@@ -152,7 +152,7 @@ function AnalyticsContent() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
                   <XAxis dataKey="state" tick={{ fontSize: 12, fill: '#4A5568' }} />
                   <YAxis tick={{ fontSize: 12, fill: '#4A5568' }} />
-                  <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} formatter={(val: number) => [`₹${val.toFixed(0)} Cr`, 'Cost Overrun']} />
+                  <Tooltip contentStyle={{ backgroundColor: '#17365D', color: '#FFF9EF', borderRadius: '10px' }} formatter={(val: any) => [`₹${Number(val || 0).toFixed(0)} Cr`, 'Cost Overrun']} />
                   <Bar dataKey="costEscalationCr" fill="#17365D" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
