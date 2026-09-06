@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -48,7 +48,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export default function CostDriversPage() {
+function CostDriversContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialProjId = searchParams.get('project') || 'PIM-1001';
@@ -506,5 +506,13 @@ export default function CostDriversPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function CostDriversPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading Cost Drivers...</div>}>
+      <CostDriversContent />
+    </Suspense>
   );
 }
