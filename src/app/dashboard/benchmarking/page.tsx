@@ -13,7 +13,8 @@ import {
   ArrowUpRight,
   Sparkles,
   Info,
-  Database
+  Database,
+  AlertTriangle
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -25,11 +26,6 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts'
-
-// Supabase Client Setup
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface ModelMetrics {
   algorithm: string
@@ -51,58 +47,42 @@ interface BenchmarkData {
   comparisonMetrics: ComparisonMetric[]
 }
 
-const FALLBACK_BENCHMARKS: BenchmarkData = {
-  traditional: {
-    algorithm: 'Multiple Linear Regression Baseline (MoSPI Historical)',
-    mae: 8.4,
-    rmse: 12.1,
-    r2: 0.58,
-    f1Score: 0.62,
-  },
-  aiModel: {
-    algorithm: 'PAIMANA Gradient Boosted Decision Tree (XGBoost/LightGBM)',
-    mae: 2.1,
-    rmse: 3.8,
-    r2: 0.91,
-    f1Score: 0.89,
-  },
-  comparisonMetrics: [
-    { metric: 'MAE Delay (Months)', traditional: 8.4, aiModel: 2.1 },
-    { metric: 'RMSE Error Variance', traditional: 12.1, aiModel: 3.8 },
-    { metric: 'R² Goodness of Fit', traditional: 0.58, aiModel: 0.91 },
-    { metric: 'F1 Classification Score', traditional: 0.62, aiModel: 0.89 },
-  ],
-}
-
 export default function BenchmarkingPage() {
   const [benchmarks, setBenchmarks] = useState<BenchmarkData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
-  const [isLiveDB, setIsLiveDB] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchBenchmarkData() {
       try {
         setLoading(true)
-        
-        // Fetch real data directly from Supabase `model_benchmarks` table
-        const { data, error } = await supabase
+        setError(null)
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+        if (!supabaseUrl || !supabaseAnonKey) {
+          throw new Error('Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY) are missing in Vercel.')
+        }
+
+        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+        // Direct fetch from Supabase `model_benchmarks` table
+        const { data, error: dbError } = await supabase
           .from('model_benchmarks')
           .select('*')
 
-        if (error || !data || data.length === 0) {
-          console.warn('Falling back to default metrics:', error?.message)
-          setBenchmarks(FALLBACK_BENCHMARKS)
-          setIsLiveDB(false)
-          return
+        if (dbError) throw dbError
+
+        if (!data || data.length === 0) {
+          throw new Error('No records found in "model_benchmarks" table in Supabase.')
         }
 
         const trad = data.find((m) => m.model_type === 'traditional')
         const ai = data.find((m) => m.model_type === 'ai_model')
 
         if (!trad || !ai) {
-          setBenchmarks(FALLBACK_BENCHMARKS)
-          setIsLiveDB(false)
-          return
+          throw new Error('Database is missing required "traditional" or "ai_model" records.')
         }
 
         const formattedData: BenchmarkData = {
@@ -129,11 +109,9 @@ export default function BenchmarkingPage() {
         }
 
         setBenchmarks(formattedData)
-        setIsLiveDB(true)
-      } catch (err) {
-        console.error('Failed to load benchmarks:', err)
-        setBenchmarks(FALLBACK_BENCHMARKS)
-        setIsLiveDB(false)
+      } catch (err: any) {
+        console.error('Supabase query error:', err)
+        setError(err.message || 'Failed to fetch benchmark data from Supabase.')
       } finally {
         setLoading(false)
       }
@@ -142,11 +120,21 @@ export default function BenchmarkingPage() {
     fetchBenchmarkData()
   }, [])
 
-  if (loading || !benchmarks) {
+  if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-white rounded-2xl border border-slate-200">
         <Zap className="w-8 h-8 text-[#F59A00] animate-bounce mb-3" />
-        <p className="text-sm font-bold text-[#17365D]">Connecting to Supabase & Evaluating Statistical Benchmarks...</p>
+        <p className="text-sm font-bold text-[#17365D]">Fetching live metrics directly from Supabase...</p>
+      </div>
+    )
+  }
+
+  if (error || !benchmarks) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center bg-white rounded-2xl border border-red-200">
+        <AlertTriangle className="w-8 h-8 text-red-500 mb-3" />
+        <p className="text-sm font-bold text-red-600">Database Connection / Query Error</p>
+        <p className="text-xs text-slate-500 mt-1 max-w-md">{error}</p>
       </div>
     )
   }
@@ -173,10 +161,9 @@ export default function BenchmarkingPage() {
             </span>
           </div>
 
-          {/* Live DB Indicator for Data Analyzer */}
           <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-emerald-700 text-xs font-bold">
             <Database className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
-            <span>{isLiveDB ? 'Live Supabase Verified' : 'Standard Baseline Sync'}</span>
+            <span>Supabase Direct Sync</span>
           </div>
         </div>
 
