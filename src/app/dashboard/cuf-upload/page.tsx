@@ -33,7 +33,7 @@ interface ValidationSummary {
   invalidSamples: InvalidSample[];
 }
 
-export const CufUpload: React.FC = () => {
+export default function CufUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [parsing, setParsing] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
@@ -84,7 +84,6 @@ export const CufUpload: React.FC = () => {
           const values = lines[i].split(',').map((v) => v.trim());
           const rowNum = i + 1;
 
-          // Map CSV columns flexibly
           const rowObj: Record<string, string> = {};
           headers.forEach((h, index) => {
             rowObj[h] = values[index] || '';
@@ -105,7 +104,6 @@ export const CufUpload: React.FC = () => {
             continue;
           }
 
-          // Format conforming to Supabase paimana_projects schema
           validPayload.push({
             project_name: projectName,
             State: state,
@@ -144,7 +142,6 @@ export const CufUpload: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      // Upsert into Supabase paimana_projects table (matches on primary key `project_name` and replaces/updates existing records)
       const { error: dbError } = await supabase
         .from('paimana_projects')
         .upsert(summary.validPayload, { onConflict: 'project_name' });
@@ -332,4 +329,4 @@ export const CufUpload: React.FC = () => {
       )}
     </div>
   );
-};
+}
