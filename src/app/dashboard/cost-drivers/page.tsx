@@ -1,6 +1,6 @@
-'use client';
+'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Sparkles, Info } from 'lucide-react';
 
@@ -13,7 +13,7 @@ interface RiskDriver {
   description: string;
 }
 
-export default function CostDrivers() {
+function CostDriversContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projParam = searchParams.get('project');
@@ -35,7 +35,6 @@ export default function CostDrivers() {
           const current = data.currentProject || data.projects[0];
           setProject(current);
 
-          // Generate dynamic custom drivers based on actual Supabase columns
           if (current) {
             setDrivers(generateCustomDrivers(current));
           }
@@ -50,12 +49,10 @@ export default function CostDrivers() {
     loadData();
   }, [projParam]);
 
-  // Dynamic Custom Driver Generator using Supabase Table Parameters
   const generateCustomDrivers = (proj: any): RiskDriver[] => {
     const score = proj.riskScore || 50;
     const dynamicDrivers: RiskDriver[] = [];
 
-    // Driver 1: Cost Overrun / Variance Factor
     if (proj.costVariancePercent > 10 || proj.costOverrun > 0) {
       dynamicDrivers.push({
         factor: 'Capital Outlay & Cost Overrun Variance',
@@ -72,7 +69,6 @@ export default function CostDrivers() {
       });
     }
 
-    // Driver 2: Physical Progress Lag
     if (proj.physicalProgress < 50) {
       dynamicDrivers.push({
         factor: 'Delayed Physical Progress Velocity',
@@ -89,7 +85,6 @@ export default function CostDrivers() {
       });
     }
 
-    // Driver 3: State & Compliance Bottlenecks (from database anomalies or state properties)
     dynamicDrivers.push({
       factor: `State-Level Clearance Lag (${proj.state})`,
       severity: score > 70 ? 'CRITICAL' : 'MEDIUM',
@@ -116,7 +111,6 @@ export default function CostDrivers() {
 
   return (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-      {/* Header & Dropdown */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#F59A00', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
@@ -130,7 +124,6 @@ export default function CostDrivers() {
           </div>
         </div>
 
-        {/* Database Project Selector Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#17365D' }}>Select Project:</label>
           <select
@@ -161,7 +154,6 @@ export default function CostDrivers() {
 
       {project && (
         <>
-          {/* Project Summary Banner */}
           <div className="card-paimana" style={{ backgroundColor: '#17365D', color: '#FFFFFF', padding: '1.5rem 2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.25rem' }}>
               <div>
@@ -196,7 +188,6 @@ export default function CostDrivers() {
             </div>
           </div>
 
-          {/* Risk Factors Breakdown */}
           <div className="card-paimana">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
               <div>
@@ -242,5 +233,13 @@ export default function CostDrivers() {
         </>
       )}
     </div>
+  );
+}
+
+export default function CostDrivers() {
+  return (
+    <Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center', fontWeight: 700, color: '#17365D' }}>Loading Cost Drivers...</div>}>
+      <CostDriversContent />
+    </Suspense>
   );
 }
