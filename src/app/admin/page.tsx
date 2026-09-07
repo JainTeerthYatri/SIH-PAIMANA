@@ -10,54 +10,67 @@ import {
   X,
   Users,
   Search,
-  LayoutDashboard,
   FileSpreadsheet,
   UserPlus,
   Mail,
   Shield,
-  UserCheck
+  UserCheck,
+  RefreshCw,
 } from 'lucide-react'
 
-interface Officer {
-  id: number
+interface SupabaseUser {
+  id: string
   email: string
   role: 'officer' | 'admin' | 'super_admin'
   department: string
-  status: 'Active' | 'Inactive'
+  status: string
+  createdAt: string
 }
 
 export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
+  const [fetchingUsers, setFetchingUsers] = useState(true)
 
-  // Current logged-in user role ('admin' or 'super_admin')
-  const [currentAdminRole, setCurrentAdminRole] = useState<'admin' | 'super_admin'>('super_admin')
+  // Real Supabase Auth Users State
+  const [officers, setOfficers] = useState<SupabaseUser[]>([])
 
   // 🕒 6-Hour Refreshing Dynamic Code for Officers
   const dailyCode = getDynamic2FACode()
-
-  // Registered Officers List State
-  const [officers, setOfficers] = useState<Officer[]>([
-    { id: 1, email: 'officer.nhai@mospi.gov.in', role: 'officer', department: 'NHAI Project Directorate', status: 'Active' },
-    { id: 2, email: 'regional.mumbai@mospi.gov.in', role: 'officer', department: 'Western Railways Division', status: 'Active' },
-    { id: 3, email: 'admin.central@mospi.gov.in', role: 'admin', department: 'MoSPI Central Admin', status: 'Active' },
-  ])
 
   // Form State for User Provisioning
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
-    role: 'officer',
+    role: 'officer', // Strictly locked to 'officer' for standard admin
+    department: '',
     secretKey: '',
   })
 
+  // 🔄 Fetch Users directly from your existing API (/api/admin/user)
+  const fetchSupabaseUsers = async () => {
+    setFetchingUsers(true)
+    try {
+      const res = await fetch('/api/admin/user')
+      const data = await res.json()
+      if (res.ok && data.users) {
+        setOfficers(data.users)
+      }
+    } catch (err) {
+      console.error('Failed to fetch Supabase users:', err)
+    } finally {
+      setFetchingUsers(false)
+    }
+  }
+
   useEffect(() => {
-    // Login Session Check - Exact logic intact
-    if (!document.cookie.includes('paimana_session=true')) {
+    // Session Verification
+    if (!document.cookie.includes('paimana_session=true') && !document.cookie.includes('paimana_godmode=true')) {
       window.location.href = '/login'
       return
     }
+    fetchSupabaseUsers()
   }, [])
 
   const handleLogout = () => {
@@ -65,7 +78,7 @@ export default function AdminDashboard() {
     window.location.href = '/login'
   }
 
-  // 🛡️ Provision New Officer / User
+  // 🛡️ Provision New Officer Account
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitLoading(true)
@@ -74,28 +87,18 @@ export default function AdminDashboard() {
       const res = await fetch('/api/admin/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify({ ...newUser, role: 'officer' }), // Locked to officer
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      alert(data.message || 'Officer account provisioned successfully!')
-
-      // Local State Update
-      setOfficers((prev) => [
-        {
-          id: Date.now(),
-          email: newUser.email,
-          role: newUser.role as 'officer' | 'admin',
-          department: 'MoSPI Designated Division',
-          status: 'Active',
-        },
-        ...prev,
-      ])
-
+      alert(data.message || 'Officer account provisioned successfully in Supabase Auth!')
       setIsModalOpen(false)
-      setNewUser({ email: '', password: '', role: 'officer', secretKey: '' })
+      setNewUser({ email: '', password: '', role: 'officer', department: '', secretKey: '' })
+      
+      // Refresh list from Supabase Auth
+      fetchSupabaseUsers()
     } catch (err: any) {
       alert(`Error: ${err.message}`)
     } finally {
@@ -103,7 +106,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // Search Filter for Officers
+  // Live Search Filter for Officers
   const filteredOfficers = officers.filter(
     (o) =>
       o.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -148,7 +151,7 @@ export default function AdminDashboard() {
           onClick={handleLogout}
           className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-red-400 transition-all p-2 rounded-xl"
         >
-          <LogOut size={16} /> Logout
+          <LogOut size={16} /> Logout Admin
         </button>
       </aside>
 
@@ -161,7 +164,7 @@ export default function AdminDashboard() {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight">Officer Administration</h1>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">Admin Console</h1>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 MoSPI Officer Directory & Clearance
               </p>
@@ -189,7 +192,7 @@ export default function AdminDashboard() {
         {/* PAGE CONTENT */}
         <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
           
-          {/* 🔐 6-HOUR OFFICER DYNAMIC CODE ONLY */}
+          {/* 🔐 6-HOUR OFFICER DYNAMIC CLEARANCE CODE */}
           <div className="bg-slate-900 rounded-2xl p-6 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md border border-slate-800">
             <div>
               <h2 className="text-base font-bold flex items-center gap-2 text-white">
@@ -204,17 +207,17 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* 📋 OFFICERS DIRECTORY TABLE */}
+          {/* 📋 REAL SUPABASE OFFICERS DIRECTORY TABLE */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-slate-50/50">
               <div>
                 <h2 className="text-base font-bold text-slate-900">Registered Officers & Personnel</h2>
                 <p className="text-xs text-slate-500">
-                  Manage active credentials, security roles, and access clearances
+                  Live data fetched directly from Supabase Auth Database
                 </p>
               </div>
 
-              {/* Search & Add Action */}
+              {/* Search & Actions */}
               <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search size={14} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -226,6 +229,15 @@ export default function AdminDashboard() {
                     className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
                   />
                 </div>
+
+                <button
+                  onClick={fetchSupabaseUsers}
+                  disabled={fetchingUsers}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition-all border border-slate-200"
+                  title="Refresh Users"
+                >
+                  <RefreshCw size={14} className={fetchingUsers ? 'animate-spin' : ''} />
+                </button>
 
                 <button
                   onClick={() => setIsModalOpen(true)}
@@ -255,10 +267,17 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white text-xs">
-                  {filteredOfficers.length === 0 ? (
+                  {fetchingUsers ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                        No officers found matching your search.
+                        <Activity className="w-5 h-5 animate-spin inline mr-2 text-emerald-600" />
+                        Fetching live Supabase Auth users...
+                      </td>
+                    </tr>
+                  ) : filteredOfficers.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                        No registered users found in Supabase Auth.
                       </td>
                     </tr>
                   ) : (
@@ -316,7 +335,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h2 className="text-base font-bold text-slate-900">Provision Officer Account</h2>
-                <p className="text-xs text-slate-500">Create new credentials & clearance</p>
+                <p className="text-xs text-slate-500">Create new credentials in Supabase Auth</p>
               </div>
             </div>
 
@@ -337,6 +356,20 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Department / Division *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newUser.department}
+                  onChange={(e) => setNewUser({ ...newUser, department: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition-all"
+                  placeholder="e.g. NHAI Directorate"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   Temporary Password *
                 </label>
                 <input
@@ -352,25 +385,17 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Assigned Role *
+                  Assigned Role
                 </label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold"
-                >
-                  <option value="officer">Officer</option>
-
-                  {/* Admin role option only for Super Admin */}
-                  {currentAdminRole === 'super_admin' && (
-                    <option value="admin">Admin</option>
-                  )}
-                </select>
-                {currentAdminRole === 'admin' && (
-                  <p className="text-[10px] text-amber-600 font-semibold mt-1">
-                    * Admin accounts are restricted to creating Officer accounts only.
-                  </p>
-                )}
+                <input
+                  type="text"
+                  readOnly
+                  value="Officer (Admin Restricted)"
+                  className="w-full bg-slate-100 border border-slate-200 text-slate-500 font-semibold rounded-xl px-3.5 py-2 text-xs cursor-not-allowed"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  * Admins are strictly restricted to creating Officer accounts only.
+                </p>
               </div>
 
               <div className="pt-1">
