@@ -1,7 +1,7 @@
-'use client'
-
+'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import {
   Landmark,
   ShieldCheck,
@@ -308,8 +308,8 @@ interface NavLink {
 }
 
 export const Navbar: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
@@ -334,8 +334,8 @@ export const Navbar: React.FC = () => {
     setActiveNav(link.name);
     setMobileOpen(false);
 
-    if (location.pathname !== '/') {
-      navigate('/' + link.href);
+    if (pathname !== '/') {
+      router.push('/' + link.href);
       return;
     }
 
@@ -397,7 +397,7 @@ export const Navbar: React.FC = () => {
 
           <div className="desktop-nav-buttons" style={{ alignItems: 'center', gap: '0.85rem' }}>
             <button
-              onClick={() => navigate('/workspace/login')}
+              onClick={() => router.push('/workspace/login')}
               className="btn-secondary"
               style={{
                 padding: '0.65rem 1.35rem',
@@ -413,7 +413,7 @@ export const Navbar: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => router.push('/login')}
               className="btn-primary"
               style={{
                 padding: '0.65rem 1.35rem',
@@ -487,7 +487,7 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => {
                   setMobileOpen(false);
-                  navigate('/workspace/login');
+                  router.push('/workspace/login');
                 }}
                 className="btn-secondary"
                 style={{ width: '100%', padding: '0.75rem' }}
@@ -497,7 +497,7 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => {
                   setMobileOpen(false);
-                  navigate('/login');
+                  router.push('/login');
                 }}
                 className="btn-primary"
                 style={{ width: '100%', padding: '0.75rem' }}
@@ -590,7 +590,8 @@ export const Navbar: React.FC = () => {
    4. HERO
 ===================================================== */
 export const Hero: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = usePathname();
 
   return (
     <section id="home" className="hero-section">
@@ -645,7 +646,7 @@ export const Hero: React.FC = () => {
 
         <div className="hero-ctas" style={{ gap: '1.25rem', justifyContent: 'flex-start' }}>
           <button
-            onClick={() => navigate('/workspace/login')}
+            onClick={() => router.push('/workspace/login')}
             className="btn-primary"
             style={{
               padding: '0.85rem 1.8rem',
@@ -662,7 +663,7 @@ export const Hero: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => router.push('/dashboard')}
             className="btn-secondary"
             style={{
               padding: '0.85rem 1.6rem',
@@ -937,7 +938,8 @@ export const TrustSection: React.FC = () => {
    6. FEATURE CARDS
 ===================================================== */
 export const FeatureCards: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -1105,7 +1107,7 @@ export const FeatureCards: React.FC = () => {
             return (
               <div
                 key={idx}
-                onClick={() => navigate(`/capability/${feat.id}`)}
+                onClick={() => router.push(`/capability/${feat.id}`)}
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderRadius: '20px',
@@ -1200,7 +1202,7 @@ export const FeatureCards: React.FC = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/capability/${feat.id}`);
+                    router.push(`/capability/${feat.id}`);
                   }}
                   style={{
                     backgroundColor: feat.btnBg,
@@ -2196,7 +2198,8 @@ export const Capabilities: React.FC = () => {
    10. AI ASSISTANT PREVIEW
 ===================================================== */
 export const AIAssistantPreview: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = usePathname();
   const [selectedPrompt, setSelectedPrompt] = useState(
     'Summarize the bottlenecks in the Transport sector.'
   );
@@ -2353,7 +2356,7 @@ export const AIAssistantPreview: React.FC = () => {
             </div>
 
             <button
-              onClick={() => navigate('/ai-assistant')}
+              onClick={() => router.push('/ai-assistant')}
               style={{
                 padding: '0.6rem 1.25rem',
                 fontSize: '0.85rem',
@@ -2920,7 +2923,8 @@ export const AnalyticsPreview: React.FC = () => {
    12. CTA SECTION
 ===================================================== */
 export const CTASection: React.FC = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
+  const pathname = usePathname();
 
   return (
     <section
@@ -2968,7 +2972,7 @@ export const CTASection: React.FC = () => {
           }}
         >
           <button
-            onClick={() => navigate('/workspace/login')}
+            onClick={() => router.push('/workspace/login')}
             className="btn-primary"
             style={{
               padding: '0.95rem 2.4rem',
@@ -2984,7 +2988,7 @@ export const CTASection: React.FC = () => {
           </button>
 
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => router.push('/dashboard')}
             className="btn-secondary"
             style={{
               padding: '0.95rem 2.2rem',
@@ -3024,22 +3028,22 @@ export const Footer: React.FC = () => {
             <h4 className="footer-col-title">Platform</h4>
             <ul className="footer-links-list">
               <li>
-                <Link to="/dashboard" className="footer-link-item">
+                <Link href="/dashboard" className="footer-link-item">
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link to="/risk-intelligence" className="footer-link-item">
+                <Link href="/risk-intelligence" className="footer-link-item">
                   Risk Intelligence
                 </Link>
               </li>
               <li>
-                <Link to="/ai-assistant" className="footer-link-item">
+                <Link href="/ai-assistant" className="footer-link-item">
                   AI Assistant
                 </Link>
               </li>
               <li>
-                <Link to="/analytics" className="footer-link-item">
+                <Link href="/analytics" className="footer-link-item">
                   Analytics
                 </Link>
               </li>
@@ -3055,7 +3059,7 @@ export const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
-                <Link to="/reports" className="footer-link-item">
+                <Link href="/reports" className="footer-link-item">
                   Reports
                 </Link>
               </li>
