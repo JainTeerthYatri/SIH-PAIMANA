@@ -51,7 +51,7 @@ import {
 } from 'recharts';
 
 /* =====================================================
-   1. LOGO COMPONENT
+   TYPES & INTERFACES
 ===================================================== */
 interface LogoProps {
   theme?: 'light' | 'dark';
@@ -59,6 +59,18 @@ interface LogoProps {
   size?: 'normal' | 'large' | 'small';
 }
 
+interface DynamicSlide {
+  id: string;
+  category: string;
+  title: string;
+  imageUrl: string;
+  transitionType: string;
+  icon: React.ReactNode;
+}
+
+/* =====================================================
+   1. LOGO COMPONENT
+===================================================== */
 export const Logo: React.FC<LogoProps> = ({
   theme = 'light',
   variant = 'full',
@@ -303,7 +315,7 @@ export const AnimatedBackground: React.FC = () => {
 };
 
 /* =====================================================
-   3. NAVBAR (SINGLE WORKSPACE LOGIN WITH PRIMARY STYLE)
+   3. NAVBAR
 ===================================================== */
 interface NavLink {
   name: string;
@@ -317,7 +329,6 @@ export const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
 
-  // Handle Scroll, Sticky Header & Scroll-Spy Active Tab Detection
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -372,7 +383,6 @@ export const Navbar: React.FC = () => {
 
   return (
     <div style={{ position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
-      {/* Main Header Bar */}
       <header
         className={`paimana-navbar ${scrolled ? 'scrolled' : ''}`}
         style={{
@@ -395,7 +405,6 @@ export const Navbar: React.FC = () => {
             justifyContent: 'space-between',
           }}
         >
-          {/* Logo */}
           <div
             style={{ cursor: 'pointer' }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -403,7 +412,6 @@ export const Navbar: React.FC = () => {
             <Logo variant="full" />
           </div>
 
-          {/* Desktop Nav Links */}
           <nav
             className="desktop-nav-menu hidden md:flex"
             style={{ gap: '1.85rem', alignItems: 'center' }}
@@ -444,7 +452,6 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Single Primary Workspace Login Button (Desktop) */}
           <div
             className="desktop-nav-buttons hidden md:flex"
             style={{ alignItems: 'center' }}
@@ -471,7 +478,6 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
 
-          {/* Mobile Hamburger Toggle Button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{
@@ -488,7 +494,6 @@ export const Navbar: React.FC = () => {
           </button>
         </div>
 
-        {/* Mobile Dropdown Drawer */}
         {mobileOpen && (
           <div
             className="mobile-drawer block md:hidden"
@@ -556,7 +561,6 @@ export const Navbar: React.FC = () => {
         )}
       </header>
 
-      {/* Latest Updates Ticker Bar */}
       <div
         style={{
           backgroundColor: '#EFF6FF',
@@ -634,7 +638,7 @@ export const Navbar: React.FC = () => {
 };
 
 /* =====================================================
-   HERO SECTION (DARK & HIGH-CONTRAST DYNAMIC BACKGROUNDS)
+   4. HERO SECTION
 ===================================================== */
 export const Hero: React.FC = () => {
   const router = useRouter();
@@ -762,7 +766,6 @@ export const Hero: React.FC = () => {
           background-size: cover;
           background-position: center;
           transition: opacity 1s ease-in-out;
-          /* Dark Filter Added: Reduces brightness & boosts contrast */
           filter: brightness(0.42) contrast(1.25) saturate(1.1);
         }
 
@@ -774,7 +777,6 @@ export const Hero: React.FC = () => {
         .anim-pulse-scale { animation: animPulseScale 6s ease-out forwards; }
       `}</style>
 
-      {/* Dynamic Background Images */}
       {slides.map((slide, idx) => {
         const isActive = idx === currentSlideIndex;
         return (
@@ -791,7 +793,6 @@ export const Hero: React.FC = () => {
         );
       })}
 
-      {/* Deep Dark Overlay for Clean Contrast & Depth */}
       <div
         style={{
           position: 'absolute',
@@ -801,7 +802,6 @@ export const Hero: React.FC = () => {
         }}
       />
 
-      {/* Main Content */}
       <div
         style={{
           maxWidth: '1320px',
@@ -929,7 +929,6 @@ export const Hero: React.FC = () => {
         </div>
       </div>
 
-      {/* Dots Indicator */}
       <div
         style={{
           position: 'absolute',
@@ -959,7 +958,6 @@ export const Hero: React.FC = () => {
         ))}
       </div>
 
-      {/* Live Badge */}
       <div
         style={{
           position: 'absolute',
@@ -1186,7 +1184,6 @@ export const TrustSection: React.FC = () => {
 ===================================================== */
 export const FeatureCards: React.FC = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -2446,7 +2443,6 @@ export const Capabilities: React.FC = () => {
 ===================================================== */
 export const AIAssistantPreview: React.FC = () => {
   const router = useRouter();
-  const pathname = usePathname();
   const [selectedPrompt, setSelectedPrompt] = useState(
     'Summarize the bottlenecks in the Transport sector.'
   );
@@ -2859,7 +2855,6 @@ export const AnalyticsPreview: React.FC = () => {
             gap: '1.75rem',
           }}
         >
-          {/* Sector Risk */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
@@ -2961,7 +2956,6 @@ export const AnalyticsPreview: React.FC = () => {
             </div>
           </div>
 
-          {/* Risk Distribution */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
@@ -3070,7 +3064,6 @@ export const AnalyticsPreview: React.FC = () => {
             </div>
           </div>
 
-          {/* Cost Escalation */}
           <div
             style={{
               backgroundColor: '#FFFFFF',
@@ -3171,7 +3164,6 @@ export const AnalyticsPreview: React.FC = () => {
 ===================================================== */
 export const CTASection: React.FC = () => {
   const router = useRouter();
-  const pathname = usePathname();
 
   return (
     <section
@@ -3179,7 +3171,15 @@ export const CTASection: React.FC = () => {
       className="section-wrapper"
       style={{ padding: '4rem 2rem 5rem 2rem' }}
     >
-      <div className="cta-banner" style={{ borderRadius: '28px', padding: '4.5rem 3rem' }}>
+      <div
+        className="cta-banner"
+        style={{
+          borderRadius: '28px',
+          padding: '4.5rem 3rem',
+          backgroundColor: '#0F172A',
+          textAlign: 'center',
+        }}
+      >
         <h2
           style={{
             fontFamily: 'Outfit, sans-serif',
@@ -3227,6 +3227,11 @@ export const CTASection: React.FC = () => {
               borderRadius: '12px',
               backgroundColor: '#F59A00',
               color: '#FFFFFF',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
               boxShadow: '0 6px 20px rgba(245, 154, 0, 0.4)',
             }}
           >
@@ -3243,7 +3248,11 @@ export const CTASection: React.FC = () => {
               borderRadius: '12px',
               backgroundColor: 'transparent',
               color: '#FFFFFF',
-              borderColor: 'rgba(255, 255, 255, 0.4)',
+              border: '1.5px solid rgba(255, 255, 255, 0.4)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
             }}
           >
             <BarChart2 size={18} style={{ color: '#F59A00' }} />
@@ -3260,37 +3269,67 @@ export const CTASection: React.FC = () => {
 ===================================================== */
 export const Footer: React.FC = () => {
   return (
-    <footer className="paimana-footer">
-      <div className="footer-container">
-        <div className="footer-grid">
+    <footer
+      className="paimana-footer"
+      style={{ backgroundColor: '#0F172A', color: '#94A3B8', padding: '4rem 2rem 2rem' }}
+    >
+      <div className="footer-container" style={{ maxWidth: '1320px', margin: '0 auto' }}>
+        <div
+          className="footer-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '2.5rem',
+            marginBottom: '3rem',
+          }}
+        >
           <div>
-            <Logo theme="light" variant="full" size="large" />
-            <p className="footer-brand-desc">
+            <Logo theme="dark" variant="full" size="normal" />
+            <p
+              className="footer-brand-desc"
+              style={{ marginTop: '1rem', fontSize: '0.88rem', lineHeight: 1.6, color: '#94A3B8' }}
+            >
               Predictive intelligence for infrastructure development. Empowering policymakers and
               monitoring agencies across India with actionable early warnings.
             </p>
           </div>
 
           <div>
-            <h4 className="footer-col-title">Platform</h4>
-            <ul className="footer-links-list">
+            <h4
+              className="footer-col-title"
+              style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
+            >
+              Platform
+            </h4>
+            <ul
+              className="footer-links-list"
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+                fontSize: '0.88rem',
+              }}
+            >
               <li>
-                <Link href="/dashboard" className="footer-link-item">
+                <Link href="/dashboard" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Dashboard
                 </Link>
               </li>
               <li>
-                <Link href="/risk-intelligence" className="footer-link-item">
+                <Link href="/risk-intelligence" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Risk Intelligence
                 </Link>
               </li>
               <li>
-                <Link href="/ai-assistant" className="footer-link-item">
+                <Link href="/ai-assistant" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   AI Assistant
                 </Link>
               </li>
               <li>
-                <Link href="/analytics" className="footer-link-item">
+                <Link href="/analytics" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Analytics
                 </Link>
               </li>
@@ -3298,71 +3337,136 @@ export const Footer: React.FC = () => {
           </div>
 
           <div>
-            <h4 className="footer-col-title">Resources</h4>
-            <ul className="footer-links-list">
+            <h4
+              className="footer-col-title"
+              style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
+            >
+              Resources
+            </h4>
+            <ul
+              className="footer-links-list"
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+                fontSize: '0.88rem',
+              }}
+            >
               <li>
-                <a href="#insights" className="footer-link-item">
+                <a href="#insights" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Insights
                 </a>
               </li>
               <li>
-                <Link href="/reports" className="footer-link-item">
+                <Link href="/reports" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Reports
                 </Link>
               </li>
               <li>
-                <a href="#documentation" className="footer-link-item">
+                <a href="#documentation" style={{ color: '#94A3B8', textDecoration: 'none' }}>
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#benchmarks" className="footer-link-item">
-                  Benchmarking
+                <a href="#api" style={{ color: '#94A3B8', textDecoration: 'none' }}>
+                  API & Data Feeds
                 </a>
               </li>
             </ul>
           </div>
 
           <div>
-            <h4 className="footer-col-title">Company</h4>
-            <ul className="footer-links-list">
+            <h4
+              className="footer-col-title"
+              style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
+            >
+              Government
+            </h4>
+            <ul
+              className="footer-links-list"
+              style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+                fontSize: '0.88rem',
+              }}
+            >
               <li>
-                <a href="#about" className="footer-link-item">
-                  About
+                <a
+                  href="https://mospi.gov.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#94A3B8', textDecoration: 'none' }}
+                >
+                  MoSPI Official Portal
                 </a>
               </li>
               <li>
-                <a href="#contact" className="footer-link-item">
-                  Contact
+                <a
+                  href="https://niti.gov.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#94A3B8', textDecoration: 'none' }}
+                >
+                  NITI Aayog
                 </a>
               </li>
               <li>
-                <a href="#privacy" className="footer-link-item">
-                  Privacy Policy
+                <a
+                  href="https://pmgatishakti.gov.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#94A3B8', textDecoration: 'none' }}
+                >
+                  PM GatiShakti Portal
                 </a>
               </li>
               <li>
-                <a href="#terms" className="footer-link-item">
-                  Terms of Service
+                <a
+                  href="https://india.gov.in"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#94A3B8', textDecoration: 'none' }}
+                >
+                  National Portal of India
                 </a>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="footer-bottom-bar">
+        <div
+          style={{
+            borderTop: '1px solid #1E293B',
+            paddingTop: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            fontSize: '0.82rem',
+            color: '#64748B',
+          }}
+        >
           <div>
-            © 2026 PAIMANA. All rights reserved. Built for National Infrastructure Intelligence.
+            © {new Date().getFullYear()} PAIMANA — Ministry of Statistics & Programme Implementation
+            (MoSPI), Govt. of India.
           </div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
-            <a href="#privacy" className="footer-link-item">
-              Privacy
+            <a href="#privacy" style={{ color: '#64748B', textDecoration: 'none' }}>
+              Privacy Policy
             </a>
-            <a href="#terms" className="footer-link-item">
-              Terms
+            <a href="#terms" style={{ color: '#64748B', textDecoration: 'none' }}>
+              Terms of Service
             </a>
-            <a href="#security" className="footer-link-item">
-              Security
+            <a href="#security" style={{ color: '#64748B', textDecoration: 'none' }}>
+              Security Compliance
             </a>
           </div>
         </div>
@@ -3372,48 +3476,29 @@ export const Footer: React.FC = () => {
 };
 
 /* =====================================================
-   14. MAIN HOME / LANDING PAGE
+   14. MAIN PAGE COMPONENT
 ===================================================== */
-export const Home: React.FC = () => {
+export default function Page() {
   return (
-    <div
+    <main
       style={{
         minHeight: '100vh',
         backgroundColor: '#FFF9EF',
-        position: 'relative',
+        color: '#17365D',
+        fontFamily: 'Inter, sans-serif',
       }}
     >
-      {/* Hero Header Area with Animated Infrastructure Background */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <AnimatedBackground />
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <Navbar />
-          <Hero />
-        </div>
-      </div>
-
-      {/* Solid Background Container for lower sections */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          backgroundColor: '#FFF9EF',
-        }}
-      >
-        <main>
-          <TrustSection />
-          <FeatureCards />
-          <AboutSection />
-          <HowItWorks />
-          <Capabilities />
-          <AIAssistantPreview />
-          <AnalyticsPreview />
-          <CTASection />
-        </main>
-        <Footer />
-      </div>
-    </div>
+      <Navbar />
+      <Hero />
+      <TrustSection />
+      <FeatureCards />
+      <AboutSection />
+      <HowItWorks />
+      <Capabilities />
+      <AIAssistantPreview />
+      <AnalyticsPreview />
+      <CTASection />
+      <Footer />
+    </main>
   );
-};
-
-export default Home;
+}
