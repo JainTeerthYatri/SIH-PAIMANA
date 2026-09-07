@@ -300,7 +300,7 @@ export const AnimatedBackground: React.FC = () => {
 };
 
 /* =====================================================
-   3. NAVBAR
+   3. NAVBAR (FIXED & REFACTORED)
 ===================================================== */
 interface NavLink {
   name: string;
@@ -314,8 +314,29 @@ export const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
 
+  // Handle Scroll, Sticky Header & Scroll-Spy Active Tab Detection
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+
+      // ScrollSpy: Page scroll hone par automatically nav link highlight hoga
+      const sections = ['home', 'about', 'features', 'insights', 'resources', 'contact'];
+      const scrollPosition = window.scrollY + 180;
+
+      for (const section of sections) {
+        const el = document.getElementById(section);
+        if (el) {
+          const top = el.offsetTop;
+          const height = el.offsetHeight;
+          if (scrollPosition >= top && scrollPosition < top + height) {
+            const formattedName = section.charAt(0).toUpperCase() + section.slice(1);
+            setActiveNav(formattedName);
+            break;
+          }
+        }
+      }
+    };
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -348,9 +369,31 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <>
-      <header className={`paimana-navbar ${scrolled ? 'scrolled' : ''}`}>
-        <div className="paimana-navbar-container" style={{ padding: '0.85rem 2rem' }}>
+    <div style={{ position: 'sticky', top: 0, zIndex: 100, width: '100%' }}>
+      {/* Main Header Bar */}
+      <header
+        className={`paimana-navbar ${scrolled ? 'scrolled' : ''}`}
+        style={{
+          width: '100%',
+          backgroundColor: scrolled ? 'rgba(255, 255, 255, 0.95)' : '#FFF9EF',
+          backdropFilter: scrolled ? 'blur(12px)' : 'none',
+          boxShadow: scrolled ? '0 4px 20px rgba(23, 54, 93, 0.08)' : 'none',
+          borderBottom: scrolled ? '1px solid #EAE2D5' : '1px solid transparent',
+          transition: 'all 0.3s ease',
+        }}
+      >
+        <div
+          className="paimana-navbar-container"
+          style={{
+            maxWidth: '1320px',
+            margin: '0 auto',
+            padding: '0.85rem 2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          {/* Logo */}
           <div
             style={{ cursor: 'pointer' }}
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -358,7 +401,11 @@ export const Navbar: React.FC = () => {
             <Logo variant="full" />
           </div>
 
-          <nav className="desktop-nav-menu" style={{ gap: '1.85rem', alignItems: 'center' }}>
+          {/* Desktop Nav Links (Hidden on Mobile) */}
+          <nav
+            className="desktop-nav-menu hidden md:flex"
+            style={{ gap: '1.85rem', alignItems: 'center' }}
+          >
             {navLinks.map((link) => {
               const isActive = activeNav === link.name;
               return (
@@ -395,7 +442,11 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          <div className="desktop-nav-buttons" style={{ alignItems: 'center', gap: '0.85rem' }}>
+          {/* Desktop Nav Buttons (Hidden on Mobile) */}
+          <div
+            className="desktop-nav-buttons hidden md:flex"
+            style={{ alignItems: 'center', gap: '0.85rem' }}
+          >
             <button
               onClick={() => router.push('/workspace/login')}
               className="btn-secondary"
@@ -407,6 +458,7 @@ export const Navbar: React.FC = () => {
                 backgroundColor: '#FFFFFF',
                 border: '1.5px solid #EAE2D5',
                 color: '#17365D',
+                cursor: 'pointer',
               }}
             >
               Workspace Login
@@ -422,6 +474,11 @@ export const Navbar: React.FC = () => {
                 borderRadius: '10px',
                 backgroundColor: '#F59A00',
                 color: '#FFFFFF',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
               }}
             >
               <span>Public Login</span>
@@ -429,6 +486,7 @@ export const Navbar: React.FC = () => {
             </button>
           </div>
 
+          {/* Mobile Hamburger Toggle Button (Visible only on Mobile) */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{
@@ -438,16 +496,17 @@ export const Navbar: React.FC = () => {
               cursor: 'pointer',
               padding: '0.5rem',
             }}
-            className="mobile-hamburger-btn"
+            className="mobile-hamburger-btn block md:hidden"
             aria-label="Toggle Navigation Menu"
           >
             {mobileOpen ? <X size={26} /> : <Menu size={26} />}
           </button>
         </div>
 
+        {/* Mobile Dropdown Drawer */}
         {mobileOpen && (
           <div
-            className="mobile-drawer"
+            className="mobile-drawer block md:hidden"
             style={{
               backgroundColor: '#FFF9EF',
               borderBottom: '1px solid #EAE2D5',
@@ -490,7 +549,14 @@ export const Navbar: React.FC = () => {
                   router.push('/workspace/login');
                 }}
                 className="btn-secondary"
-                style={{ width: '100%', padding: '0.75rem' }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '10px',
+                  border: '1.5px solid #EAE2D5',
+                  backgroundColor: '#FFF',
+                  fontWeight: 700,
+                }}
               >
                 Workspace Login
               </button>
@@ -500,7 +566,15 @@ export const Navbar: React.FC = () => {
                   router.push('/login');
                 }}
                 className="btn-primary"
-                style={{ width: '100%', padding: '0.75rem' }}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '10px',
+                  backgroundColor: '#F59A00',
+                  color: '#FFFFFF',
+                  fontWeight: 700,
+                  border: 'none',
+                }}
               >
                 Public Login →
               </button>
@@ -509,7 +583,7 @@ export const Navbar: React.FC = () => {
         )}
       </header>
 
-      {/* Latest Updates Ticker */}
+      {/* Latest Updates Ticker Bar */}
       <div
         style={{
           backgroundColor: '#EFF6FF',
@@ -582,7 +656,7 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
