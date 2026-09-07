@@ -746,9 +746,9 @@ export const Hero: React.FC = () => {
         }
 
         @keyframes animFadeBlur {
-          0% { opacity: 0; filter: brightness(0.4) blur(8px); transform: scale(1.02); }
-          15% { opacity: 1; filter: brightness(0.4) blur(0px); }
-          100% { opacity: 1; filter: brightness(0.4) blur(0px); transform: scale(1.06); }
+          0% { opacity: 0; filter: brightness(0.95) blur(8px); transform: scale(1.02); }
+          15% { opacity: 1; filter: brightness(0.95) blur(0px); }
+          100% { opacity: 1; filter: brightness(0.95) blur(0px); transform: scale(1.06); }
         }
 
         @keyframes animPulseScale {
