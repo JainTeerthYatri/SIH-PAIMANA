@@ -634,22 +634,12 @@ export const Navbar: React.FC = () => {
 };
 
 /* =====================================================
-   HERO SECTION (DYNAMIC MULTI-TRANSITION BACKGROUNDS)
+   HERO SECTION (DARK & HIGH-CONTRAST DYNAMIC BACKGROUNDS)
 ===================================================== */
-interface DynamicSlide {
-  id: string;
-  category: string;
-  title: string;
-  imageUrl: string;
-  transitionType: string;
-  icon: React.ReactNode;
-}
-
 export const Hero: React.FC = () => {
   const router = useRouter();
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
-  // 6 Themes with High-Res Images & Unique Animation Styles
   const slides: DynamicSlide[] = [
     {
       id: 'chips',
@@ -701,7 +691,6 @@ export const Hero: React.FC = () => {
     },
   ];
 
-  // Auto-slide transition every 5.5 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlideIndex((prevIndex) => (prevIndex + 1) % slides.length);
@@ -721,50 +710,43 @@ export const Hero: React.FC = () => {
         minHeight: '88vh',
         display: 'flex',
         alignItems: 'center',
-        backgroundColor: '#0F172A',
+        backgroundColor: '#0A0F1D',
         color: '#FFFFFF',
         padding: '4rem 2rem',
         overflow: 'hidden',
       }}
     >
-      {/* CSS Keyframe Animations for Dynamic Transitions */}
       <style>{`
-        /* Smooth Fade & Zoom In Effect */
         @keyframes animZoomIn {
           0% { opacity: 0; transform: scale(1); }
           15% { opacity: 1; }
           100% { opacity: 1; transform: scale(1.12); }
         }
         
-        /* Pan Right Effect */
         @keyframes animPanRight {
           0% { opacity: 0; transform: translateX(-3%) scale(1.05); }
           15% { opacity: 1; }
           100% { opacity: 1; transform: translateX(2%) scale(1.08); }
         }
 
-        /* Zoom Out Effect */
         @keyframes animZoomOut {
           0% { opacity: 0; transform: scale(1.15); }
           15% { opacity: 1; }
           100% { opacity: 1; transform: scale(1); }
         }
 
-        /* Pan Left Effect */
         @keyframes animPanLeft {
           0% { opacity: 0; transform: translateX(3%) scale(1.05); }
           15% { opacity: 1; }
           100% { opacity: 1; transform: translateX(-2%) scale(1.08); }
         }
 
-        /* Soft Fade with Subtle Blur */
         @keyframes animFadeBlur {
-          0% { opacity: 0; filter: blur(8px); transform: scale(1.02); }
-          15% { opacity: 1; filter: blur(0px); }
-          100% { opacity: 1; filter: blur(0px); transform: scale(1.06); }
+          0% { opacity: 0; filter: brightness(0.4) blur(8px); transform: scale(1.02); }
+          15% { opacity: 1; filter: brightness(0.4) blur(0px); }
+          100% { opacity: 1; filter: brightness(0.4) blur(0px); transform: scale(1.06); }
         }
 
-        /* Pulse Scale Effect */
         @keyframes animPulseScale {
           0% { opacity: 0; transform: scale(1); }
           15% { opacity: 1; }
@@ -780,6 +762,8 @@ export const Hero: React.FC = () => {
           background-size: cover;
           background-position: center;
           transition: opacity 1s ease-in-out;
+          /* Dark Filter Added: Reduces brightness & boosts contrast */
+          filter: brightness(0.42) contrast(1.25) saturate(1.1);
         }
 
         .anim-zoom-in { animation: animZoomIn 6s ease-out forwards; }
@@ -790,7 +774,7 @@ export const Hero: React.FC = () => {
         .anim-pulse-scale { animation: animPulseScale 6s ease-out forwards; }
       `}</style>
 
-      {/* Render Dynamic Background Images with Layering */}
+      {/* Dynamic Background Images */}
       {slides.map((slide, idx) => {
         const isActive = idx === currentSlideIndex;
         return (
@@ -807,12 +791,12 @@ export const Hero: React.FC = () => {
         );
       })}
 
-      {/* Dark Overlay over all images for 100% Text Contrast */}
+      {/* Deep Dark Overlay for Clean Contrast & Depth */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.90) 100%)',
+          background: 'radial-gradient(circle at center, rgba(10, 15, 29, 0.5) 0%, rgba(10, 15, 29, 0.88) 100%)',
           zIndex: 2,
         }}
       />
@@ -828,7 +812,6 @@ export const Hero: React.FC = () => {
         }}
       >
         <div style={{ maxWidth: '720px' }}>
-          {/* Main Heading */}
           <h1
             style={{
               fontSize: 'clamp(2.5rem, 5vw, 3.8rem)',
@@ -838,25 +821,25 @@ export const Hero: React.FC = () => {
               marginBottom: '1.25rem',
             }}
           >
-            <span style={{ color: '#FFFFFF', display: 'block' }}>
+            <span style={{ color: '#FFFFFF', display: 'block', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
               Predict Risks.
             </span>
-            <span style={{ color: '#F59A00', display: 'block' }}>
+            <span style={{ color: '#F59A00', display: 'block', textShadow: '0 2px 12px rgba(245,154,0,0.3)' }}>
               Protect Investments.
             </span>
-            <span style={{ color: '#FFFFFF', display: 'block' }}>
+            <span style={{ color: '#FFFFFF', display: 'block', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
               Build a Stronger India.
             </span>
           </h1>
 
-          {/* Subtitle */}
           <p
             style={{
               fontSize: '1.05rem',
               lineHeight: 1.6,
-              color: 'rgba(255, 255, 255, 0.9)',
+              color: 'rgba(255, 255, 255, 0.92)',
               fontWeight: 400,
               marginBottom: '2rem',
+              textShadow: '0 1px 4px rgba(0,0,0,0.6)',
             }}
           >
             PAIMANA transforms infrastructure monitoring with AI-powered early
@@ -864,7 +847,6 @@ export const Hero: React.FC = () => {
             escalations and schedule delays before they impact national development.
           </p>
 
-          {/* Action Buttons */}
           <div
             style={{
               display: 'flex',
@@ -888,8 +870,7 @@ export const Hero: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                boxShadow: '0 4px 14px rgba(245, 154, 0, 0.35)',
-                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 18px rgba(245, 154, 0, 0.45)',
               }}
             >
               <span>Workspace Login</span>
@@ -913,7 +894,7 @@ export const Hero: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
               }}
             >
               <span>Explore Platform</span>
@@ -921,7 +902,6 @@ export const Hero: React.FC = () => {
             </button>
           </div>
 
-          {/* Feature Badges */}
           <div
             style={{
               display: 'flex',
@@ -949,7 +929,7 @@ export const Hero: React.FC = () => {
         </div>
       </div>
 
-      {/* Dynamic Dots Indicator (Interactive) */}
+      {/* Dots Indicator */}
       <div
         style={{
           position: 'absolute',
@@ -979,7 +959,7 @@ export const Hero: React.FC = () => {
         ))}
       </div>
 
-      {/* Dynamic Live Infrastructure Tag (Updates automatically with active image) */}
+      {/* Live Badge */}
       <div
         style={{
           position: 'absolute',
@@ -995,7 +975,7 @@ export const Hero: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           gap: '0.55rem',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
           zIndex: 4,
           transition: 'all 0.4s ease',
         }}
