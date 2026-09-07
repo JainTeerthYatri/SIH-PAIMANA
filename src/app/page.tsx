@@ -630,155 +630,198 @@ export const Navbar: React.FC = () => {
   );
 };
 
-/* =====================================================
-   4. HERO
+* =====================================================
+   HERO SECTION (FIXED ALL IMPORTS & VISIBILITY)
 ===================================================== */
 export const Hero: React.FC = () => {
   const router = useRouter();
-  const pathname = usePathname();
 
   return (
-    <section id="home" className="hero-section">
+    <section
+      id="home"
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '88vh',
+        display: 'flex',
+        alignItems: 'center',
+        /* Dark Fallback Color (#0F172A) + Dark Gradient Overlay + Background Image */
+        backgroundColor: '#0F172A',
+        backgroundImage: `
+          linear-gradient(
+            180deg, 
+            rgba(15, 23, 42, 0.82) 0%, 
+            rgba(15, 23, 42, 0.88) 100%
+          ),
+          url('/images/hero-port-bg.jpg')
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        color: '#FFFFFF',
+        padding: '4rem 2rem',
+        overflow: 'hidden',
+      }}
+    >
       <div
-        className="animate-fade-in"
         style={{
-          maxWidth: '680px',
-          margin: '0',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          textAlign: 'left',
-          gap: '1.35rem',
-          padding: '1rem 0',
+          maxWidth: '1320px',
+          margin: '0 auto',
+          width: '100%',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
-        <h1
-          className="hero-title"
-          style={{
-            fontSize: 'clamp(2.5rem, 4.5vw, 3.6rem)',
-            color: '#FFFFFF',
-            textShadow: '0 2px 12px rgba(0,0,0,0.4)',
-            textAlign: 'left',
-          }}
-        >
-          Predict Risks.
-          <br />
-          <span style={{ color: '#F59A00', display: 'inline-block' }}>
-            Protect Investments.
-          </span>
-          <br />
-          Build a Stronger India.
-        </h1>
-
-        <p
-          className="hero-description"
-          style={{
-            maxWidth: '640px',
-            color: '#FFFFFF',
-            fontSize: '1.08rem',
-            fontWeight: 500,
-            lineHeight: 1.65,
-            margin: '0',
-            textAlign: 'left',
-            textShadow: '0 1px 8px rgba(0,0,0,0.5)',
-          }}
-        >
-          PAIMANA transforms infrastructure monitoring with AI-powered early warning signals,
-          helping policymakers and agencies identify cost escalations and schedule delays before
-          they impact national development.
-        </p>
-
-        <div className="hero-ctas" style={{ gap: '1.25rem', justifyContent: 'flex-start' }}>
-          <button
-            onClick={() => router.push('/workspace/login')}
-            className="btn-primary"
+        <div style={{ maxWidth: '680px' }}>
+          {/* Main Heading */}
+          <h1
             style={{
-              padding: '0.85rem 1.8rem',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              borderRadius: '12px',
-              backgroundColor: '#F59A00',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 14px rgba(245, 154, 0, 0.35)',
+              fontSize: 'clamp(2.5rem, 5vw, 3.8rem)',
+              fontWeight: 800,
+              lineHeight: 1.15,
+              letterSpacing: '-0.02em',
+              marginBottom: '1.25rem',
             }}
           >
-            <span>Workspace Login</span>
-            <ArrowRight size={18} />
-          </button>
+            <span style={{ color: '#FFFFFF', display: 'block' }}>
+              Predict Risks.
+            </span>
+            <span style={{ color: '#F59A00', display: 'block' }}>
+              Protect Investments.
+            </span>
+            <span style={{ color: '#FFFFFF', display: 'block' }}>
+              Build a Stronger India.
+            </span>
+          </h1>
 
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="btn-secondary"
+          {/* Subtitle */}
+          <p
             style={{
-              padding: '0.85rem 1.6rem',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              borderRadius: '12px',
-              backgroundColor: '#FFFFFF',
-              border: '1.5px solid #EAE2D5',
-              color: '#17365D',
-              boxShadow: '0 2px 8px rgba(23, 54, 93, 0.04)',
+              fontSize: '1.05rem',
+              lineHeight: 1.6,
+              color: 'rgba(255, 255, 255, 0.9)',
+              fontWeight: 400,
+              marginBottom: '2rem',
             }}
           >
-            <span>Explore Platform</span>
-            <BarChart2 size={20} style={{ color: '#F59A00' }} />
-          </button>
-        </div>
+            PAIMANA transforms infrastructure monitoring with AI-powered early
+            warning signals, helping policymakers and agencies identify cost
+            escalations and schedule delays before they impact national development.
+          </p>
 
-        <div
-          className="hero-trust-bullets"
-          style={{
-            gap: '1.75rem',
-            marginTop: '1rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid rgba(255, 255, 255, 0.3)',
-            justifyContent: 'flex-start',
-            width: '100%',
-          }}
-        >
+          {/* Action Buttons */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+              gap: '1rem',
+              flexWrap: 'wrap',
+              marginBottom: '2.5rem',
             }}
           >
-            <Shield size={18} style={{ color: '#F59A00' }} />
-            <span>Secure</span>
+            <button
+              onClick={() => router.push('/workspace/login')}
+              style={{
+                backgroundColor: '#F59A00',
+                color: '#FFFFFF',
+                padding: '0.85rem 1.75rem',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 4px 14px rgba(245, 154, 0, 0.35)',
+              }}
+            >
+              <span>Workspace Login</span>
+              <ArrowRight size={18} />
+            </button>
+
+            <button
+              onClick={() => {
+                const elem = document.querySelector('#features');
+                if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+              }}
+              style={{
+                backgroundColor: '#FFFFFF',
+                color: '#17365D',
+                padding: '0.85rem 1.75rem',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.1)',
+              }}
+            >
+              <span>Explore Platform</span>
+              <BarChart2 size={18} color="#F59A00" />
+            </button>
           </div>
+
+          {/* Feature Badges */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.45rem',
-              fontSize: '0.9rem',
-              fontWeight: 700,
+              gap: '1.5rem',
+              flexWrap: 'wrap',
+              fontSize: '0.88rem',
+              fontWeight: 600,
               color: '#FFFFFF',
-              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
             }}
           >
-            <Server size={18} style={{ color: '#F59A00' }} />
-            <span>Data-Driven</span>
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              color: '#FFFFFF',
-              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
-            }}
-          >
-            <CheckCircle2 size={18} style={{ color: '#F59A00' }} />
-            <span>Built for Bharat</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ShieldCheck size={18} color="#F59A00" />
+              <span>Secure</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Database size={18} color="#F59A00" />
+              <span>Data-Driven</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <CheckCircle2 size={18} color="#F59A00" />
+              <span>Built for Bharat</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      {/* Bottom Live Infrastructure Tag */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '1.5rem',
+          right: '2rem',
+          backgroundColor: '#FFFFFF',
+          color: '#17365D',
+          padding: '0.5rem 1rem',
+          borderRadius: '20px',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+          zIndex: 2,
+        }}
+      >
+        <span
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#F59A00',
+            display: 'inline-block',
+          }}
+        />
+        <span>Live Infrastructure: Deep-Water Maritime Port & Container Logistics</span>
       </div>
     </section>
   );
