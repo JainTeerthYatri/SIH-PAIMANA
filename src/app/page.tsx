@@ -300,7 +300,7 @@ export const AnimatedBackground: React.FC = () => {
 };
 
 /* =====================================================
-   3. NAVBAR (FIXED & REFACTORED)
+   3. NAVBAR (SINGLE WORKSPACE LOGIN WITH PRIMARY STYLE)
 ===================================================== */
 interface NavLink {
   name: string;
@@ -319,7 +319,6 @@ export const Navbar: React.FC = () => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
 
-      // ScrollSpy: Page scroll hone par automatically nav link highlight hoga
       const sections = ['home', 'about', 'features', 'insights', 'resources', 'contact'];
       const scrollPosition = window.scrollY + 180;
 
@@ -401,7 +400,7 @@ export const Navbar: React.FC = () => {
             <Logo variant="full" />
           </div>
 
-          {/* Desktop Nav Links (Hidden on Mobile) */}
+          {/* Desktop Nav Links */}
           <nav
             className="desktop-nav-menu hidden md:flex"
             style={{ gap: '1.85rem', alignItems: 'center' }}
@@ -442,30 +441,13 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Desktop Nav Buttons (Hidden on Mobile) */}
+          {/* Single Primary Workspace Login Button (Desktop) */}
           <div
             className="desktop-nav-buttons hidden md:flex"
-            style={{ alignItems: 'center', gap: '0.85rem' }}
+            style={{ alignItems: 'center' }}
           >
             <button
               onClick={() => router.push('/workspace/login')}
-              className="btn-secondary"
-              style={{
-                padding: '0.65rem 1.35rem',
-                fontSize: '0.88rem',
-                fontWeight: 700,
-                borderRadius: '10px',
-                backgroundColor: '#FFFFFF',
-                border: '1.5px solid #EAE2D5',
-                color: '#17365D',
-                cursor: 'pointer',
-              }}
-            >
-              Workspace Login
-            </button>
-
-            <button
-              onClick={() => router.push('/login')}
               className="btn-primary"
               style={{
                 padding: '0.65rem 1.35rem',
@@ -481,12 +463,12 @@ export const Navbar: React.FC = () => {
                 gap: '0.4rem',
               }}
             >
-              <span>Public Login</span>
+              <span>Workspace Login</span>
               <ArrowRight size={16} />
             </button>
           </div>
 
-          {/* Mobile Hamburger Toggle Button (Visible only on Mobile) */}
+          {/* Mobile Hamburger Toggle Button */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{
@@ -548,23 +530,6 @@ export const Navbar: React.FC = () => {
                   setMobileOpen(false);
                   router.push('/workspace/login');
                 }}
-                className="btn-secondary"
-                style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  borderRadius: '10px',
-                  border: '1.5px solid #EAE2D5',
-                  backgroundColor: '#FFF',
-                  fontWeight: 700,
-                }}
-              >
-                Workspace Login
-              </button>
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  router.push('/login');
-                }}
                 className="btn-primary"
                 style={{
                   width: '100%',
@@ -574,9 +539,14 @@ export const Navbar: React.FC = () => {
                   color: '#FFFFFF',
                   fontWeight: 700,
                   border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
                 }}
               >
-                Public Login →
+                <span>Workspace Login</span>
+                <ArrowRight size={16} />
               </button>
             </div>
           </div>
