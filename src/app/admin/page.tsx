@@ -1,87 +1,63 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { getDynamic2FACode } from '@/lib/auth-utils'
 import {
   LogOut,
   ShieldCheck,
-  Building2,
-  TrendingUp,
-  AlertTriangle,
   Activity,
   Key,
   X,
   Users,
   Search,
-  RefreshCw,
   LayoutDashboard,
   FileSpreadsheet,
-  ShieldAlert,
   UserPlus,
+  Mail,
+  Shield,
+  UserCheck
 } from 'lucide-react'
 
-// Match with your Supabase schema
-interface Project {
+interface Officer {
   id: number
-  project_name: string
-  Sector: string
-  State: string
-  original_cost_cr: number
-  anticipated_cost_cr: number
-  cost_overrun_cr: number
+  email: string
+  role: 'officer' | 'admin' | 'super_admin'
+  department: string
+  status: 'Active' | 'Inactive'
 }
 
 export default function AdminDashboard() {
-  const [loading, setLoading] = useState(true)
-  const [projects, setProjects] = useState<Project[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-
-  // Modal State (Only for Provision User)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
 
-  // Logged-in Admin Role (Fetch from backend/session or state)
-  // Defaulting to 'super_admin' so you can test all permissions. Set to 'admin' to restrict.
+  // Current logged-in user role ('admin' or 'super_admin')
   const [currentAdminRole, setCurrentAdminRole] = useState<'admin' | 'super_admin'>('super_admin')
 
-  // 🕒 Dynamic 6-Hour Code & Monthly Cipher State
+  // 🕒 6-Hour Refreshing Dynamic Code for Officers
   const dailyCode = getDynamic2FACode()
-  const [monthlyCipher, setMonthlyCipher] = useState('84920193')
-  const [isRotating, setIsRotating] = useState(false)
+
+  // Registered Officers List State
+  const [officers, setOfficers] = useState<Officer[]>([
+    { id: 1, email: 'officer.nhai@mospi.gov.in', role: 'officer', department: 'NHAI Project Directorate', status: 'Active' },
+    { id: 2, email: 'regional.mumbai@mospi.gov.in', role: 'officer', department: 'Western Railways Division', status: 'Active' },
+    { id: 3, email: 'admin.central@mospi.gov.in', role: 'admin', department: 'MoSPI Central Admin', status: 'Active' },
+  ])
 
   // Form State for User Provisioning
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
-    role: 'officer', // 'officer' | 'admin'
+    role: 'officer',
     secretKey: '',
   })
 
-  // 🔄 Fetch Real Data from Supabase
-  const fetchProjects = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('paimana_projects')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(50)
-
-      if (data) setProjects(data)
-    } catch (error) {
-      console.error('Error fetching data:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    // Session Check
+    // Login Session Check - Exact logic intact
     if (!document.cookie.includes('paimana_session=true')) {
       window.location.href = '/login'
       return
     }
-    fetchProjects()
   }, [])
 
   const handleLogout = () => {
@@ -89,17 +65,7 @@ export default function AdminDashboard() {
     window.location.href = '/login'
   }
 
-  // 🔑 Rotate Monthly Admin Cipher
-  const handleRotateCipher = () => {
-    setIsRotating(true)
-    setTimeout(() => {
-      const generated = Math.floor(10000000 + Math.random() * 90000000).toString()
-      setMonthlyCipher(generated)
-      setIsRotating(false)
-    }, 500)
-  }
-
-  // 🛡️ Create New User (Provision Account)
+  // 🛡️ Provision New Officer / User
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitLoading(true)
@@ -114,7 +80,20 @@ export default function AdminDashboard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
 
-      alert(data.message || 'User account provisioned successfully!')
+      alert(data.message || 'Officer account provisioned successfully!')
+
+      // Local State Update
+      setOfficers((prev) => [
+        {
+          id: Date.now(),
+          email: newUser.email,
+          role: newUser.role as 'officer' | 'admin',
+          department: 'MoSPI Designated Division',
+          status: 'Active',
+        },
+        ...prev,
+      ])
+
       setIsModalOpen(false)
       setNewUser({ email: '', password: '', role: 'officer', secretKey: '' })
     } catch (err: any) {
@@ -124,24 +103,13 @@ export default function AdminDashboard() {
     }
   }
 
-  const totalProjects = projects.length
-  const delayedProjects = projects.filter((p) => (p.cost_overrun_cr || 0) > 0).length
-
-  // Filtered Projects for Live Search
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.project_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.Sector?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.State?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Search Filter for Officers
+  const filteredOfficers = officers.filter(
+    (o) =>
+      o.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.department.toLowerCase().includes(searchTerm.toLowerCase())
   )
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans flex">
@@ -155,7 +123,7 @@ export default function AdminDashboard() {
             <div>
               <h1 className="font-black tracking-wider text-base text-white">PAIMANA</h1>
               <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                Admin Console
+                Officer Management
               </p>
             </div>
           </div>
@@ -165,13 +133,13 @@ export default function AdminDashboard() {
               href="#"
               className="flex items-center gap-3 px-3.5 py-2.5 bg-emerald-500/15 text-emerald-400 rounded-xl transition-all"
             >
-              <LayoutDashboard size={16} /> Admin Control
+              <Users size={16} /> Officers Console
             </a>
             <button
               onClick={() => (window.location.href = '/dashboard')}
               className="w-full flex items-center gap-3 px-3.5 py-2.5 text-slate-400 hover:text-white rounded-xl transition-all text-left"
             >
-              <FileSpreadsheet size={16} /> Main User Dashboard
+              <FileSpreadsheet size={16} /> Main Dashboard
             </button>
           </nav>
         </div>
@@ -180,7 +148,7 @@ export default function AdminDashboard() {
           onClick={handleLogout}
           className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-red-400 transition-all p-2 rounded-xl"
         >
-          <LogOut size={16} /> Logout Admin
+          <LogOut size={16} /> Logout
         </button>
       </aside>
 
@@ -193,9 +161,9 @@ export default function AdminDashboard() {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-slate-900 tracking-tight">Admin Console</h1>
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">Officer Administration</h1>
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                MoSPI Data & Access Management
+                MoSPI Officer Directory & Clearance
               </p>
             </div>
           </div>
@@ -220,99 +188,39 @@ export default function AdminDashboard() {
 
         {/* PAGE CONTENT */}
         <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* 🔐 SECURITY CLEARANCE & CIPHER CARDS GRID */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Dynamic 6-Hour Officer Code */}
-            <div className="bg-slate-900 rounded-2xl p-5 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm border border-slate-800">
-              <div>
-                <h2 className="text-sm font-bold flex items-center gap-2 text-white">
-                  <Key className="w-4 h-4 text-emerald-400" /> Dynamic Officer 2FA Code
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  6-hour auto-rotating validation key for officers.
-                </p>
-              </div>
-              <div className="bg-black/60 border border-slate-700 px-5 py-2 rounded-xl font-mono text-xl font-black tracking-[0.2em] text-emerald-400 shrink-0">
-                {dailyCode}
-              </div>
+          
+          {/* 🔐 6-HOUR OFFICER DYNAMIC CODE ONLY */}
+          <div className="bg-slate-900 rounded-2xl p-6 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-md border border-slate-800">
+            <div>
+              <h2 className="text-base font-bold flex items-center gap-2 text-white">
+                <Key className="w-5 h-5 text-emerald-400" /> Active Security Clearance Code (Officer 2FA)
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Provide this dynamic 6-digit verification code to officers. It rotates strictly every 6 hours.
+              </p>
             </div>
-
-            {/* Monthly Admin Cipher */}
-            <div className="bg-emerald-900 rounded-2xl p-5 text-emerald-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm border border-emerald-700/50">
-              <div>
-                <h2 className="text-sm font-bold flex items-center gap-2 text-white">
-                  <ShieldAlert className="w-4 h-4 text-emerald-300" /> Active Monthly Admin Cipher
-                </h2>
-                <p className="text-xs text-emerald-200/80 mt-1">
-                  Master cipher for admin portal verification.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="bg-black/30 border border-emerald-600 px-4 py-2 rounded-xl font-mono text-lg font-black tracking-[0.2em] text-white">
-                  {monthlyCipher}
-                </div>
-                <button
-                  onClick={handleRotateCipher}
-                  disabled={isRotating}
-                  className="p-2.5 bg-emerald-800 hover:bg-emerald-700 rounded-xl text-emerald-200 transition-all"
-                  title="Generate New Monthly Cipher"
-                >
-                  <RefreshCw size={16} className={isRotating ? 'animate-spin' : ''} />
-                </button>
-              </div>
+            <div className="bg-black/60 border border-slate-700 px-6 py-2.5 rounded-xl font-mono text-2xl font-black tracking-[0.25em] text-emerald-400 shrink-0 shadow-inner">
+              {dailyCode}
             </div>
           </div>
 
-          {/* 📊 DYNAMIC STATS CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-              <div className="p-3.5 bg-blue-50 text-blue-600 rounded-xl">
-                <Building2 className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase">Recent Projects</p>
-                <h3 className="text-2xl font-black text-slate-900">{totalProjects}</h3>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-              <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase">Database Status</p>
-                <h3 className="text-lg font-black text-emerald-600">Synced Live</h3>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-              <div className="p-3.5 bg-red-50 text-red-600 rounded-xl">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-slate-500 uppercase">Critical / Delayed</p>
-                <h3 className="text-2xl font-black text-red-600">{delayedProjects}</h3>
-              </div>
-            </div>
-          </div>
-
-          {/* 📋 LIVE PROJECTS TABLE WITH USER PROVISIONING ACTION */}
+          {/* 📋 OFFICERS DIRECTORY TABLE */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
             <div className="p-4 sm:p-5 border-b border-slate-200 flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-slate-50/50">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Managed Projects Database</h2>
+                <h2 className="text-base font-bold text-slate-900">Registered Officers & Personnel</h2>
                 <p className="text-xs text-slate-500">
-                  Live infrastructure records synced directly from Supabase
+                  Manage active credentials, security roles, and access clearances
                 </p>
               </div>
 
-              {/* Action Buttons & Search */}
+              {/* Search & Add Action */}
               <div className="flex flex-col sm:flex-row gap-2.5 w-full md:w-auto">
                 <div className="relative flex-1 sm:w-64">
                   <Search size={14} className="text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search project, sector, state..."
+                    placeholder="Search officer email, role..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:border-blue-500"
@@ -321,9 +229,9 @@ export default function AdminDashboard() {
 
                 <button
                   onClick={() => setIsModalOpen(true)}
-                  className="flex items-center justify-center gap-1.5 bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+                  className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-black text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
                 >
-                  <Users className="w-3.5 h-3.5" /> Provision User / Officer
+                  <UserPlus className="w-4 h-4" /> Provision New Officer
                 </button>
               </div>
             </div>
@@ -333,13 +241,13 @@ export default function AdminDashboard() {
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Project Name
+                      Official Email
                     </th>
                     <th className="px-5 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Sector & State
+                      Department / Wing
                     </th>
-                    <th className="px-5 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Cost (Cr)
+                    <th className="px-5 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      Assigned Role
                     </th>
                     <th className="px-5 py-3.5 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
                       Status
@@ -347,39 +255,39 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white text-xs">
-                  {filteredProjects.length === 0 ? (
+                  {filteredOfficers.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                        No projects found matching your search.
+                        No officers found matching your search.
                       </td>
                     </tr>
                   ) : (
-                    filteredProjects.map((project) => (
-                      <tr key={project.id} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-5 py-3.5">
-                          <div className="font-bold text-slate-900 line-clamp-2">
-                            {project.project_name}
-                          </div>
+                    filteredOfficers.map((officer) => (
+                      <tr key={officer.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-3.5 font-bold text-slate-900 flex items-center gap-2">
+                          <Mail size={14} className="text-slate-400" />
+                          {officer.email}
                         </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap">
-                          <div className="font-semibold text-slate-800">{project.Sector}</div>
-                          <div className="text-[11px] text-slate-500">{project.State}</div>
+                        <td className="px-5 py-3.5 font-medium text-slate-600">
+                          {officer.department}
                         </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap text-right">
-                          <div className="font-bold text-slate-800">
-                            ₹{project.original_cost_cr?.toLocaleString() || '0'}
-                          </div>
+                        <td className="px-5 py-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              officer.role === 'admin' || officer.role === 'super_admin'
+                                ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}
+                          >
+                            <Shield size={10} />
+                            {officer.role}
+                          </span>
                         </td>
-                        <td className="px-5 py-3.5 whitespace-nowrap text-center">
-                          {(project.cost_overrun_cr || 0) > 0 ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
-                              <AlertTriangle className="w-3 h-3" /> Overrun
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <ShieldCheck className="w-3 h-3" /> On Track
-                            </span>
-                          )}
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <UserCheck size={10} />
+                            {officer.status}
+                          </span>
                         </td>
                       </tr>
                     ))
@@ -391,7 +299,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {/* 🛡️ PROVISION USER / OFFICER MODAL */}
+      {/* 🛡️ PROVISION OFFICER MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
@@ -407,8 +315,8 @@ export default function AdminDashboard() {
                 <UserPlus className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-slate-900">Provision Account</h2>
-                <p className="text-xs text-slate-500">Create new credentials & assign authority</p>
+                <h2 className="text-base font-bold text-slate-900">Provision Officer Account</h2>
+                <p className="text-xs text-slate-500">Create new credentials & clearance</p>
               </div>
             </div>
 
@@ -444,24 +352,23 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Assigned Account Role *
+                  Assigned Role *
                 </label>
                 <select
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:border-blue-500 focus:bg-white outline-none transition-all font-semibold"
                 >
-                  {/* Officer Option: Available to both Admin & Super Admin */}
                   <option value="officer">Officer</option>
 
-                  {/* Admin Option: Only allowed if logged in as Super Admin */}
+                  {/* Admin role option only for Super Admin */}
                   {currentAdminRole === 'super_admin' && (
                     <option value="admin">Admin</option>
                   )}
                 </select>
                 {currentAdminRole === 'admin' && (
                   <p className="text-[10px] text-amber-600 font-semibold mt-1">
-                    * Admin users are restricted to provisioning Officer accounts only.
+                    * Admin accounts are restricted to creating Officer accounts only.
                   </p>
                 )}
               </div>
@@ -476,7 +383,7 @@ export default function AdminDashboard() {
                   value={newUser.secretKey}
                   onChange={(e) => setNewUser({ ...newUser, secretKey: e.target.value })}
                   className="w-full bg-red-50 border border-red-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:border-red-500 outline-none transition-all font-mono tracking-widest placeholder-red-300"
-                  placeholder="Enter 2FA dynamic clearance code"
+                  placeholder="Enter 6-digit dynamic code"
                 />
               </div>
 
@@ -488,7 +395,7 @@ export default function AdminDashboard() {
                 {submitLoading ? (
                   <Activity className="w-4 h-4 animate-spin" />
                 ) : (
-                  'Provision Account'
+                  'Provision Officer Account'
                 )}
               </button>
             </form>
