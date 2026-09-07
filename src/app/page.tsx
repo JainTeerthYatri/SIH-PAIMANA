@@ -21,6 +21,7 @@ import {
   Server,
   CheckCircle2,
   ShieldAlert,
+  BrainCircuit
   Users,
   BarChart3,
   Building,
@@ -33,6 +34,10 @@ import {
   FileSpreadsheet,
   Layers,
   User,
+  Sun,
+  Building2,
+  Network,
+  Train,
   PieChart as PieIcon,
 } from 'lucide-react';
 import {
@@ -631,10 +636,83 @@ export const Navbar: React.FC = () => {
 };
 
 /* =====================================================
-   HERO SECTION (FIXED ALL IMPORTS & VISIBILITY)
+   HERO SECTION (DYNAMIC MULTI-TRANSITION BACKGROUNDS)
 ===================================================== */
+interface DynamicSlide {
+  id: string;
+  category: string;
+  title: string;
+  imageUrl: string;
+  transitionType: string;
+  icon: React.ReactNode;
+}
+
 export const Hero: React.FC = () => {
   const router = useRouter();
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  // 6 Themes with High-Res Images & Unique Animation Styles
+  const slides: DynamicSlide[] = [
+    {
+      id: 'chips',
+      category: 'Semiconductor Fabrication',
+      title: 'Live Infrastructure: Mega Silicon Semiconductor & Chip Plant',
+      imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-zoom-in',
+      icon: <Cpu size={16} color="#F59A00" />,
+    },
+    {
+      id: 'metro',
+      category: 'Transit Systems',
+      title: 'Live Infrastructure: Rapid Metro Rail & Urban Transit Corridor',
+      imageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-pan-right',
+      icon: <Train size={16} color="#F59A00" />,
+    },
+    {
+      id: 'solar',
+      category: 'Clean Energy',
+      title: 'Live Infrastructure: 2000MW Ultra Mega Solar Power Park',
+      imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-zoom-out',
+      icon: <Sun size={16} color="#F59A00" />,
+    },
+    {
+      id: 'buildings',
+      category: 'Urban Infrastructure',
+      title: 'Live Infrastructure: Smart City Skyscraper & Urban High-Rise',
+      imageUrl: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-pan-left',
+      icon: <Building2 size={16} color="#F59A00" />,
+    },
+    {
+      id: 'networking',
+      category: 'Telecom Backbone',
+      title: 'Live Infrastructure: 5G Fiber Optical & Data Grid Mesh Network',
+      imageUrl: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-fade-blur',
+      icon: <Network size={16} color="#F59A00" />,
+    },
+    {
+      id: 'ai',
+      category: 'Artificial Intelligence',
+      title: 'Live Infrastructure: AI Neural Matrix & Autonomous Digital Twin',
+      imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=2000&q=80',
+      transitionType: 'anim-pulse-scale',
+      icon: <BrainCircuit size={16} color="#F59A00" />,
+    },
+  ];
+
+  // Auto-slide transition every 5.5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlideIndex((prevIndex) => (prevIndex + 1) % slides.length);
+    }, 5500);
+
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  const activeSlide = slides[currentSlideIndex];
 
   return (
     <section
@@ -645,34 +723,113 @@ export const Hero: React.FC = () => {
         minHeight: '88vh',
         display: 'flex',
         alignItems: 'center',
-        /* Dark Fallback Color (#0F172A) + Dark Gradient Overlay + Background Image */
         backgroundColor: '#0F172A',
-        backgroundImage: `
-          linear-gradient(
-            180deg, 
-            rgba(15, 23, 42, 0.82) 0%, 
-            rgba(15, 23, 42, 0.88) 100%
-          ),
-          url('/images/hero-port-bg.jpg')
-        `,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
         color: '#FFFFFF',
         padding: '4rem 2rem',
         overflow: 'hidden',
       }}
     >
+      {/* CSS Keyframe Animations for Dynamic Transitions */}
+      <style>{`
+        /* Smooth Fade & Zoom In Effect */
+        @keyframes animZoomIn {
+          0% { opacity: 0; transform: scale(1); }
+          15% { opacity: 1; }
+          100% { opacity: 1; transform: scale(1.12); }
+        }
+        
+        /* Pan Right Effect */
+        @keyframes animPanRight {
+          0% { opacity: 0; transform: translateX(-3%) scale(1.05); }
+          15% { opacity: 1; }
+          100% { opacity: 1; transform: translateX(2%) scale(1.08); }
+        }
+
+        /* Zoom Out Effect */
+        @keyframes animZoomOut {
+          0% { opacity: 0; transform: scale(1.15); }
+          15% { opacity: 1; }
+          100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Pan Left Effect */
+        @keyframes animPanLeft {
+          0% { opacity: 0; transform: translateX(3%) scale(1.05); }
+          15% { opacity: 1; }
+          100% { opacity: 1; transform: translateX(-2%) scale(1.08); }
+        }
+
+        /* Soft Fade with Subtle Blur */
+        @keyframes animFadeBlur {
+          0% { opacity: 0; filter: blur(8px); transform: scale(1.02); }
+          15% { opacity: 1; filter: blur(0px); }
+          100% { opacity: 1; filter: blur(0px); transform: scale(1.06); }
+        }
+
+        /* Pulse Scale Effect */
+        @keyframes animPulseScale {
+          0% { opacity: 0; transform: scale(1); }
+          15% { opacity: 1; }
+          50% { transform: scale(1.08); }
+          100% { opacity: 1; transform: scale(1.03); }
+        }
+
+        .hero-bg-image {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          background-size: cover;
+          background-position: center;
+          transition: opacity 1s ease-in-out;
+        }
+
+        .anim-zoom-in { animation: animZoomIn 6s ease-out forwards; }
+        .anim-pan-right { animation: animPanRight 6s ease-out forwards; }
+        .anim-zoom-out { animation: animZoomOut 6s ease-out forwards; }
+        .anim-pan-left { animation: animPanLeft 6s ease-out forwards; }
+        .anim-fade-blur { animation: animFadeBlur 6s ease-out forwards; }
+        .anim-pulse-scale { animation: animPulseScale 6s ease-out forwards; }
+      `}</style>
+
+      {/* Render Dynamic Background Images with Layering */}
+      {slides.map((slide, idx) => {
+        const isActive = idx === currentSlideIndex;
+        return (
+          <div
+            key={slide.id}
+            className={`hero-bg-image ${isActive ? slide.transitionType : ''}`}
+            style={{
+              backgroundImage: `url('${slide.imageUrl}')`,
+              opacity: isActive ? 1 : 0,
+              zIndex: isActive ? 1 : 0,
+              pointerEvents: 'none',
+            }}
+          />
+        );
+      })}
+
+      {/* Dark Overlay over all images for 100% Text Contrast */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.90) 100%)',
+          zIndex: 2,
+        }}
+      />
+
+      {/* Main Content */}
       <div
         style={{
           maxWidth: '1320px',
           margin: '0 auto',
           width: '100%',
           position: 'relative',
-          zIndex: 2,
+          zIndex: 3,
         }}
       >
-        <div style={{ maxWidth: '680px' }}>
+        <div style={{ maxWidth: '720px' }}>
           {/* Main Heading */}
           <h1
             style={{
@@ -734,6 +891,7 @@ export const Hero: React.FC = () => {
                 alignItems: 'center',
                 gap: '0.5rem',
                 boxShadow: '0 4px 14px rgba(245, 154, 0, 0.35)',
+                transition: 'transform 0.2s ease',
               }}
             >
               <span>Workspace Login</span>
@@ -793,35 +951,59 @@ export const Hero: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Live Infrastructure Tag */}
+      {/* Dynamic Dots Indicator (Interactive) */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '1.5rem',
+          left: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          zIndex: 4,
+        }}
+      >
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentSlideIndex(i)}
+            style={{
+              width: i === currentSlideIndex ? '28px' : '8px',
+              height: '8px',
+              borderRadius: '4px',
+              backgroundColor: i === currentSlideIndex ? '#F59A00' : 'rgba(255, 255, 255, 0.35)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+
+      {/* Dynamic Live Infrastructure Tag (Updates automatically with active image) */}
       <div
         style={{
           position: 'absolute',
           bottom: '1.5rem',
           right: '2rem',
-          backgroundColor: '#FFFFFF',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(10px)',
           color: '#17365D',
-          padding: '0.5rem 1rem',
+          padding: '0.55rem 1.1rem',
           borderRadius: '20px',
           fontSize: '0.8rem',
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-          zIndex: 2,
+          gap: '0.55rem',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          zIndex: 4,
+          transition: 'all 0.4s ease',
         }}
       >
-        <span
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: '#F59A00',
-            display: 'inline-block',
-          }}
-        />
-        <span>Live Infrastructure: Deep-Water Maritime Port & Container Logistics</span>
+        {activeSlide.icon}
+        <span>{activeSlide.title}</span>
       </div>
     </section>
   );
