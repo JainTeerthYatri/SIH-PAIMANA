@@ -17,7 +17,6 @@ import {
   X,
   Search,
   Info,
-  Database,
   RefreshCw,
   LucideIcon,
 } from 'lucide-react';
@@ -34,7 +33,6 @@ import {
   Cell,
 } from 'recharts';
 
-// --- SUPABASE CLIENT SETUP ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -42,7 +40,6 @@ const supabaseKey =
   '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// --- INTERFACES ---
 interface Project {
   id: string;
   name: string;
@@ -79,7 +76,6 @@ interface RiskDistributionItem {
   color: string;
 }
 
-// --- HELPER CSV EXPORTER ---
 const exportProjectsToCSV = (data: Project[], filename: string) => {
   if (!data || !data.length) return;
   const headers = [
@@ -125,7 +121,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Fetch projects directly from Supabase
   useEffect(() => {
     fetchData();
   }, []);
@@ -151,7 +146,6 @@ export default function DashboardPage() {
           const variancePct =
             orig > 0 ? Math.max(0, ((rev - orig) / orig) * 100) : 0;
 
-          // Compute realistic delay and risk scores
           const delayMonths =
             p.schedule_delay_months ||
             p.delay_months ||
@@ -190,7 +184,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Search Filtering
   const isFiltered = searchQuery.trim().length > 0;
   const clearFilters = () => setSearchQuery('');
 
@@ -212,7 +205,6 @@ export default function DashboardPage() {
     exportProjectsToCSV(filteredProjects, fileName);
   };
 
-  // Dynamic Calculations
   const totalActive = filteredProjects.length;
   const criticalCount = filteredProjects.filter(
     (p) => p.riskLevel === 'CRITICAL'
@@ -309,9 +301,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div
-        className="p-16 text-center text-[#17365D] bg-white rounded-2xl border border-amber-200/80 shadow-xs my-8"
-      >
+      <div className="p-16 text-center text-[#17365D] bg-white rounded-2xl border border-amber-200/80 shadow-xs my-8">
         <RefreshCw
           size={32}
           className="animate-spin text-[#F59A00] mx-auto mb-4"
@@ -326,7 +316,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Dynamic Sector Chart Data Calculation
   const sectorMap: Record<string, SectorAggregation> = {};
   filteredProjects.forEach((p) => {
     const sec = p.sector || 'Other';
@@ -343,7 +332,6 @@ export default function DashboardPage() {
   });
   const sectorChartData: SectorAggregation[] = Object.values(sectorMap);
 
-  // Dynamic Risk Distribution Pie Chart Data
   const medRiskCount = filteredProjects.filter(
     (p) => p.riskLevel === 'MEDIUM'
   ).length;
@@ -359,7 +347,6 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen font-sans space-y-7 text-slate-900">
-      {/* Search Input Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
@@ -381,7 +368,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Dynamic Active Search & Filter Banner */}
       {isFiltered && (
         <div className="bg-[#FFF9EF] border-1.5 border-[#F59A00] rounded-2xl p-3.5 px-5 flex items-center justify-between flex-wrap gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
@@ -409,7 +395,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Header Bar */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="text-xs font-extrabold text-[#F59A00] tracking-wider uppercase">
@@ -441,7 +426,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPI 6-Grid (Dynamic) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {kpis.map((kpi, index) => {
           const Icon = kpi.icon;
@@ -482,9 +466,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Main Charts & Analytics Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sector Cost Overrun Chart */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -521,7 +503,7 @@ export default function DashboardPage() {
                       border: 'none',
                     }}
                     formatter={(value: any) => [
-                      `₹${value.toFixed(0)} Cr`,
+                      `₹${Number(value || 0).toFixed(0)} Cr`,
                       'Cost Overrun',
                     ]}
                   />
@@ -540,7 +522,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Portfolio Risk Distribution */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -613,7 +594,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Critical Early Warning Feed & High Risk Table */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -647,7 +627,6 @@ export default function DashboardPage() {
                   <th className="p-3">Cost Variance</th>
                   <th className="p-3">Delay</th>
                   <th className="p-3">Risk Score</th>
-                  <th className="p-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -692,16 +671,6 @@ export default function DashboardPage() {
                         <ShieldAlert size={12} />
                         {proj.riskScore} {proj.riskLevel}
                       </span>
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <button
-                        onClick={() =>
-                          router.push(`/cost-drivers?project=${proj.id}`)
-                        }
-                        className="px-3 py-1 bg-[#FFF9EF] border border-amber-200 text-[#17365D] rounded-md text-[11px] font-bold hover:bg-amber-100 transition-all cursor-pointer"
-                      >
-                        Analyze Risk Drivers →
-                      </button>
                     </td>
                   </tr>
                 ))}
