@@ -665,7 +665,7 @@ export const Hero: React.FC = () => {
       id: 'solar',
       category: 'Clean Energy',
       title: 'Live Infrastructure: 2000MW Ultra Mega Solar Power Park',
-      imageUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=2000&q=80',
+      imageUrl: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?auto=format&fit=crop&w=2000&q=80',
       transitionType: 'anim-zoom-out',
       icon: <Sun size={16} color="#F59A00" />,
     },
