@@ -1,698 +1,3166 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  FolderKanban,
-  ShieldAlert,
-  TrendingUp,
-  Clock,
-  DollarSign,
-  AlertTriangle,
-  Sparkles,
-  ChevronRight,
-  Download,
-  BarChart2,
+  Landmark,
+  ShieldCheck,
+  Building2,
+  Flag,
+  Compass,
+  Menu,
   X,
-  Search,
+  ArrowRight,
   Info,
-  RefreshCw,
-  LucideIcon,
+  Database,
+  Cpu,
+  TrendingUp,
+  AlertTriangle,
+  BarChart2,
+  Shield,
+  Server,
+  CheckCircle2,
+  ShieldAlert,
+  Users,
+  BarChart3,
+  Building,
+  DollarSign,
+  Clock,
+  BrainCircuit,
+  Bot,
+  LineChart,
+  Bell,
+  FileSpreadsheet,
+  Layers,
+  User,
+  PieChart as PieIcon,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
   PieChart,
   Pie,
   Cell,
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
 } from 'recharts';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  '';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-interface Project {
-  id: string;
-  name: string;
-  sector: string;
-  state: string;
-  riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  riskScore: number;
-  originalCost: number;
-  revisedCost: number;
-  costVariancePercent: number;
-  scheduleDelayMonths: number;
+/* =====================================================
+   1. LOGO COMPONENT
+===================================================== */
+interface LogoProps {
+  theme?: 'light' | 'dark';
+  variant?: 'full' | 'compact';
+  size?: 'normal' | 'large' | 'small';
 }
 
-interface Kpi {
-  title: string;
-  value: string | number;
-  unit: string;
-  change: string;
-  isUp: boolean;
-  icon: LucideIcon;
-  color: string;
-  bgColor: string;
-}
+export const Logo: React.FC<LogoProps> = ({
+  theme = 'light',
+  variant = 'full',
+  size = 'normal',
+}) => {
+  const isDark = theme === 'dark';
+  const isLarge = size === 'large';
+  const isSmall = size === 'small';
 
-interface SectorAggregation {
-  sector: string;
-  count: number;
-  costOverrun: number;
-}
+  const navyColor = isDark ? '#FFF9EF' : '#17365D';
+  const orangeColor = '#F59A00';
+  const subtextColor = isDark ? 'rgba(255, 249, 239, 0.85)' : '#5E6C84';
 
-interface RiskDistributionItem {
-  name: string;
-  value: number;
-  color: string;
-}
-
-const exportProjectsToCSV = (data: Project[], filename: string) => {
-  if (!data || !data.length) return;
-  const headers = [
-    'Project ID',
-    'Project Name',
-    'Sector',
-    'State',
-    'Risk Level',
-    'Risk Score',
-    'Original Cost (Cr)',
-    'Revised Cost (Cr)',
-    'Cost Variance (%)',
-    'Schedule Delay (Months)',
-  ];
-  const rows = data.map((p) => [
-    `"${p.id || ''}"`,
-    `"${(p.name || '').replace(/"/g, '""')}"`,
-    `"${p.sector || ''}"`,
-    `"${p.state || ''}"`,
-    `"${p.riskLevel || ''}"`,
-    p.riskScore || 0,
-    p.originalCost || 0,
-    p.revisedCost || 0,
-    (p.costVariancePercent || 0).toFixed(2),
-    p.scheduleDelayMonths || 0,
-  ]);
-  const csvContent =
-    'data:text/csv;charset=utf-8,' +
-    [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
-
-export default function DashboardPage() {
-  const router = useRouter();
-
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async (): Promise<void> => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('paimana_projects')
-        .select('*')
-        .limit(2000);
-
-      if (error) {
-        console.error('Error fetching dashboard projects:', error);
-      } else if (data) {
-        const mappedProjects: Project[] = data.map((p: any, idx: number) => {
-          const orig = Number(p.original_cost_cr) || 0;
-          const rev =
-            Number(p.anticipated_cost_cr) ||
-            Number(p.revised_cost_cr) ||
-            orig;
-          const overrun = Math.max(0, rev - orig);
-          const variancePct =
-            orig > 0 ? Math.max(0, ((rev - orig) / orig) * 100) : 0;
-
-          const delayMonths =
-            p.schedule_delay_months ||
-            p.delay_months ||
-            (overrun > 50 ? 18 : overrun > 0 ? 8 : 0);
-
-          let score =
-            p.risk_score ||
-            Math.min(99, Math.round(variancePct * 0.7 + delayMonths * 2.5));
-          if (score < 10 && overrun > 0) score = 45;
-
-          let level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
-          if (score >= 75) level = 'CRITICAL';
-          else if (score >= 50) level = 'HIGH';
-          else if (score >= 25) level = 'MEDIUM';
-
-          return {
-            id: p.id ? String(p.id) : `PRJ-${idx + 1}`,
-            name: p.project_name || p.name || 'Unnamed Project',
-            sector: p.sector || 'General',
-            state: p.State || p.state || 'Multi-State',
-            riskLevel: level,
-            riskScore: score,
-            originalCost: orig,
-            revisedCost: rev,
-            costVariancePercent: variancePct,
-            scheduleDelayMonths: delayMonths,
-          };
-        });
-
-        setProjects(mappedProjects);
-      }
-    } catch (err) {
-      console.error('Unexpected dashboard fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isFiltered = searchQuery.trim().length > 0;
-  const clearFilters = () => setSearchQuery('');
-
-  const filteredProjects = projects.filter((p) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.id.toLowerCase().includes(q) ||
-      p.sector.toLowerCase().includes(q) ||
-      p.state.toLowerCase().includes(q)
-    );
-  });
-
-  const handleExportCsv = (): void => {
-    const fileName = searchQuery
-      ? `PAIMANA_Risk_Brief_${searchQuery.replace(/[^a-zA-Z0-9]/g, '_')}.csv`
-      : 'PAIMANA_Executive_Risk_Brief.csv';
-    exportProjectsToCSV(filteredProjects, fileName);
-  };
-
-  const totalActive = filteredProjects.length;
-  const criticalCount = filteredProjects.filter(
-    (p) => p.riskLevel === 'CRITICAL'
-  ).length;
-  const highRiskCount = filteredProjects.filter(
-    (p) => p.riskLevel === 'HIGH' || p.riskLevel === 'CRITICAL'
-  ).length;
-  const costEscalationCount = filteredProjects.filter(
-    (p) => p.costVariancePercent > 15
-  ).length;
-  const delayRiskCount = filteredProjects.filter(
-    (p) => p.scheduleDelayMonths > 12
-  ).length;
-  const totalValue = filteredProjects.reduce(
-    (acc, p) => acc + (p.originalCost || 0),
-    0
-  );
-  const potentialExposure = filteredProjects.reduce(
-    (acc, p) =>
-      acc + Math.max(0, (p.revisedCost || 0) - (p.originalCost || 0)),
-    0
-  );
-
-  const kpis: Kpi[] = [
-    {
-      title: 'Total Projects Monitored',
-      value: totalActive,
-      unit: searchQuery ? 'Filtered Matching' : 'Database Records',
-      change: searchQuery
-        ? `${totalActive} of ${projects.length}`
-        : `MoSPI Data Pipeline`,
-      isUp: true,
-      icon: FolderKanban,
-      color: '#17365D',
-      bgColor: 'rgba(23, 54, 93, 0.08)',
-    },
-    {
-      title: 'Critical & High Risk Projects',
-      value: highRiskCount,
-      unit: `${criticalCount} Critical Focus`,
-      change: highRiskCount > 0 ? 'Immediate Action' : '0 High Risk',
-      isUp: false,
-      icon: ShieldAlert,
-      color: '#E53E3E',
-      bgColor: '#FFF5F5',
-    },
-    {
-      title: 'Projects With Cost Escalation',
-      value: costEscalationCount,
-      unit: '>15% Variance',
-      change: `${costEscalationCount} Active`,
-      isUp: false,
-      icon: TrendingUp,
-      color: '#DD6B20',
-      bgColor: '#FFFAF0',
-    },
-    {
-      title: 'Projects At Risk of Delay',
-      value: delayRiskCount,
-      unit: '>12 M Delay',
-      change: `${delayRiskCount} Delayed`,
-      isUp: true,
-      icon: Clock,
-      color: '#D69E2E',
-      bgColor: '#FEFCBF',
-    },
-    {
-      title: 'Total Sanctioned Value',
-      value:
-        totalValue >= 1000
-          ? `₹${(totalValue / 1000).toFixed(1)}k Cr`
-          : `₹${totalValue.toFixed(0)} Cr`,
-      unit: 'Sanctioned Budget',
-      change: 'MoSPI Portfolio',
-      isUp: true,
-      icon: DollarSign,
-      color: '#2B6CB0',
-      bgColor: '#EBF8FF',
-    },
-    {
-      title: 'Potential Cost Exposure',
-      value:
-        potentialExposure >= 1000
-          ? `₹${(potentialExposure / 1000).toFixed(1)}k Cr`
-          : `₹${potentialExposure.toFixed(0)} Cr`,
-      unit: 'Projected Escalation',
-      change: 'Escalation At Risk',
-      isUp: false,
-      icon: AlertTriangle,
-      color: '#E53E3E',
-      bgColor: '#FFF5F5',
-    },
-  ];
-
-  if (loading) {
-    return (
-      <div className="p-16 text-center text-[#17365D] bg-white rounded-2xl border border-amber-200/80 shadow-xs my-8">
-        <RefreshCw
-          size={32}
-          className="animate-spin text-[#F59A00] mx-auto mb-4"
-        />
-        <h3 className="text-xl font-extrabold">
-          Connecting to PAIMANA Infrastructure Risk Database...
-        </h3>
-        <p className="text-slate-500 text-sm mt-2">
-          Fetching project monitoring records & running AI risk engines...
-        </p>
-      </div>
-    );
-  }
-
-  const sectorMap: Record<string, SectorAggregation> = {};
-  filteredProjects.forEach((p) => {
-    const sec = p.sector || 'Other';
-    const overrun = Math.max(0, p.revisedCost - p.originalCost);
-    if (!sectorMap[sec]) {
-      sectorMap[sec] = {
-        sector: sec.split('&')[0].trim(),
-        count: 0,
-        costOverrun: 0,
-      };
-    }
-    sectorMap[sec].count += 1;
-    sectorMap[sec].costOverrun += overrun;
-  });
-  const sectorChartData: SectorAggregation[] = Object.values(sectorMap);
-
-  const medRiskCount = filteredProjects.filter(
-    (p) => p.riskLevel === 'MEDIUM'
-  ).length;
-  const lowRiskCount = filteredProjects.filter(
-    (p) => p.riskLevel === 'LOW'
-  ).length;
-
-  const riskDistributionData: RiskDistributionItem[] = [
-    { name: 'High Risk (70-100)', value: highRiskCount, color: '#E53E3E' },
-    { name: 'Medium Risk (40-69)', value: medRiskCount, color: '#DD6B20' },
-    { name: 'Low Risk (0-39)', value: lowRiskCount, color: '#38A169' },
-  ].filter((d) => totalActive === 0 || d.value > 0);
+  const scale = isLarge ? 1.2 : isSmall ? 0.85 : 1;
+  const titleFontSize = isLarge ? '1.85rem' : isSmall ? '1.15rem' : '1.5rem';
+  const taglineFontSize = isLarge ? '0.72rem' : isSmall ? '0.55rem' : '0.64rem';
+  const ministryFontSize = isLarge ? '0.62rem' : isSmall ? '0.5rem' : '0.58rem';
 
   return (
-    <div className="p-4 sm:p-8 bg-[#FFF9EF] min-h-screen font-sans space-y-7 text-slate-900">
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            className="w-full pl-10 pr-9 py-2 bg-[#FFF9EF] border border-amber-200/80 rounded-xl text-xs sm:text-sm font-medium text-[#17365D] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#F59A00]"
-            placeholder="Search projects by name, sector, state, or ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
-            <button
-              onClick={clearFilters}
-              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+    <div
+      className="paimana-official-logo"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: `${0.85 * scale}rem`,
+        userSelect: 'none',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          paddingRight: '0.75rem',
+          borderRight: `1.5px solid ${isDark ? 'rgba(255, 255, 255, 0.2)' : '#17365D'}`,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <svg
+            width={Math.round(34 * scale)}
+            height={Math.round(42 * scale)}
+            viewBox="0 0 100 120"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M50 2C42 2 38 8 38 15C38 21 43 25 50 25C57 25 62 21 62 15C62 8 58 2 50 2Z"
+              fill={navyColor}
+            />
+            <path
+              d="M25 14C19 14 16 20 18 26C20 32 27 33 30 30C33 27 31 18 25 14Z"
+              fill={navyColor}
+            />
+            <path
+              d="M75 14C81 14 84 20 82 26C80 32 73 33 70 30C67 27 69 18 75 14Z"
+              fill={navyColor}
+            />
+            <path d="M35 25H65V42H35V25Z" fill={navyColor} />
+            <path d="M42 42H58V50H42V42Z" fill={navyColor} />
+            <rect x="14" y="50" width="72" height="24" rx="4" fill={navyColor} />
+            <circle
+              cx="50"
+              cy="62"
+              r="9"
+              fill={isDark ? '#17365D' : '#FFF9EF'}
+              stroke={navyColor}
+              strokeWidth="1.5"
+            />
+            <circle cx="50" cy="62" r="2.5" fill={orangeColor} />
+            <path
+              d="M50 53V71M41 62H59M43.6 55.6L56.4 68.4M56.4 55.6L43.6 68.4"
+              stroke={navyColor}
+              strokeWidth="0.8"
+            />
+            <path d="M20 74L30 84H70L80 74H20Z" fill={navyColor} />
+            <rect x="10" y="86" width="80" height="16" rx="3" fill={navyColor} />
+            <text
+              x="50"
+              y="98"
+              fontSize="8.5"
+              fontWeight="900"
+              fill={isDark ? '#17365D' : '#FFF9EF'}
+              textAnchor="middle"
             >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+              सत्यमेव जयते
+            </text>
+          </svg>
         </div>
       </div>
 
-      {isFiltered && (
-        <div className="bg-[#FFF9EF] border-1.5 border-[#F59A00] rounded-2xl p-3.5 px-5 flex items-center justify-between flex-wrap gap-3 shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <Search size={18} className="text-[#F59A00]" />
-            <span className="text-sm text-[#17365D] font-semibold">
-              Live Filter Active:{' '}
-              <strong className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">
-                "{searchQuery}"
-              </strong>
-            </span>
-            <span className="text-xs text-slate-500">
-              • Found <strong className="text-[#17365D]">{totalActive}</strong>{' '}
-              matching {totalActive === 1 ? 'project' : 'projects'} out of{' '}
-              {projects.length}
-            </span>
-          </div>
-
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-200 rounded-lg text-[#17365D] text-xs font-bold hover:bg-slate-50 cursor-pointer"
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div
+          style={{
+            fontFamily: 'Outfit, Inter, sans-serif',
+            fontSize: titleFontSize,
+            fontWeight: 900,
+            color: navyColor,
+            letterSpacing: '0.04em',
+            lineHeight: 0.95,
+            textTransform: 'uppercase',
+          }}
+        >
+          PAIMANA
+        </div>
+        <div
+          style={{
+            fontSize: taglineFontSize,
+            color: orangeColor,
+            fontWeight: 800,
+            letterSpacing: '0.05em',
+            marginTop: '3px',
+            textTransform: 'uppercase',
+            lineHeight: 1,
+          }}
+        >
+          AI-POWERED EARLY WARNING SYSTEM
+        </div>
+        {variant !== 'compact' && (
+          <div
+            style={{
+              fontSize: ministryFontSize,
+              color: subtextColor,
+              fontWeight: 600,
+              lineHeight: 1.2,
+              marginTop: '3px',
+            }}
           >
-            <X size={14} />
-            <span>Reset Search</span>
-          </button>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <div className="text-xs font-extrabold text-[#F59A00] tracking-wider uppercase">
-            COMMAND CENTER • ROLE: ADMIN
+            Ministry of Statistics & Programme Implementation
+            <br />
+            Government of India
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#17365D] tracking-tight">
-            PAIMANA Risk Intelligence Command Center
-          </h1>
-          <div className="text-xs text-slate-500 mt-1">
-            Live MoSPI Infrastructure Early Warning Analytics • Active Synced
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/ai-assistant')}
-            className="px-4 py-2.5 bg-[#F59A00] hover:bg-amber-600 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-          >
-            <Sparkles size={16} />
-            <span>Launch AI Assistant</span>
-          </button>
-          <button
-            onClick={handleExportCsv}
-            className="px-4 py-2.5 bg-white border border-slate-200 text-[#17365D] font-bold text-xs sm:text-sm rounded-xl shadow-xs hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-          >
-            <Download size={16} />
-            <span>Export Risk Brief (CSV)</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {kpis.map((kpi, index) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={index}
-              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between min-h-[140px] hover:border-[#F59A00] transition-all hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500">
-                  {kpi.title}
-                </span>
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: kpi.bgColor, color: kpi.color }}
-                >
-                  <Icon size={20} />
-                </div>
-              </div>
-
-              <div className="mt-2">
-                <div className="text-2xl sm:text-3xl font-black text-[#17365D]">
-                  {kpi.value}
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[11px] text-slate-500">{kpi.unit}</span>
-                  <span
-                    className={`text-[11px] font-bold ${
-                      kpi.isUp ? 'text-emerald-600' : 'text-red-600'
-                    }`}
-                  >
-                    {kpi.change}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-[#17365D]">
-                Project Exposure by Sector
-              </h3>
-              <div className="text-xs text-slate-500">
-                {searchQuery
-                  ? `Filtered Cost Overrun (₹ Cr) for "${searchQuery}"`
-                  : 'Total Cost Overrun (₹ Crores) per Sector'}
-              </div>
-            </div>
-            <BarChart2 size={20} className="text-[#F59A00]" />
-          </div>
-
-          <div className="w-full h-[260px]">
-            {sectorChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={sectorChartData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#EAE2D5" />
-                  <XAxis
-                    dataKey="sector"
-                    tick={{ fontSize: 11, fill: '#4A5568' }}
-                  />
-                  <YAxis tick={{ fontSize: 11, fill: '#4A5568' }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#17365D',
-                      color: '#FFF9EF',
-                      borderRadius: '10px',
-                      border: 'none',
-                    }}
-                    formatter={(value: any) => [
-                      `₹${Number(value || 0).toFixed(0)} Cr`,
-                      'Cost Overrun',
-                    ]}
-                  />
-                  <Bar
-                    dataKey="costOverrun"
-                    fill="#F59A00"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center text-slate-400 text-sm">
-                No sector data matches current filter "{searchQuery}"
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-[#17365D]">
-                Portfolio Risk Distribution
-              </h3>
-              <div className="text-xs text-slate-500">
-                Categorized by Composite Risk Score
-              </div>
-            </div>
-            <ShieldAlert size={20} className="text-red-500" />
-          </div>
-
-          <div className="flex items-center justify-around h-[260px]">
-            {totalActive > 0 ? (
-              <>
-                <div className="w-[180px] h-[180px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={riskDistributionData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {riskDistributionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: '#17365D',
-                          color: '#FFF9EF',
-                          borderRadius: '10px',
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  {riskDistributionData.map((item, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div
-                        className="w-3.5 h-3.5 rounded-sm shrink-0"
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <div>
-                        <div className="text-xs font-bold text-[#17365D]">
-                          {item.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          {item.value}{' '}
-                          {item.value === 1 ? 'Project' : 'Projects'}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <div className="text-slate-400 text-sm">
-                No project data available
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h3 className="text-base font-bold text-[#17365D]">
-              {searchQuery
-                ? `Filtered Projects matching "${searchQuery}"`
-                : 'High-Risk Projects Requiring Immediate Intervention'}
-            </h3>
-            <div className="text-xs text-slate-500">
-              Sorted by PAIMANA Composite Risk Score
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/risk-intelligence')}
-            className="px-3.5 py-1.5 bg-[#FFF9EF] border border-amber-200 text-[#17365D] text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-amber-100 transition-all cursor-pointer"
-          >
-            <span>View Full Risk Table</span>
-            <ChevronRight size={16} />
-          </button>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-slate-100">
-          {filteredProjects.length > 0 ? (
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-[#FFF9EF] border-b border-amber-200/60 text-[#17365D] font-extrabold uppercase tracking-wider text-[11px]">
-                  <th className="p-3">Project ID</th>
-                  <th className="p-3">Project Name</th>
-                  <th className="p-3">Sector</th>
-                  <th className="p-3">State</th>
-                  <th className="p-3">Cost Variance</th>
-                  <th className="p-3">Delay</th>
-                  <th className="p-3">Risk Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredProjects.slice(0, 8).map((proj) => (
-                  <tr
-                    key={proj.id}
-                    className="hover:bg-amber-50/40 transition-colors"
-                  >
-                    <td className="p-3 font-bold text-[#17365D] whitespace-nowrap">
-                      {proj.id}
-                    </td>
-                    <td className="p-3 font-bold text-[#17365D] max-w-xs line-clamp-2">
-                      {proj.name}
-                    </td>
-                    <td className="p-3 text-slate-600">{proj.sector}</td>
-                    <td className="p-3 text-[#F59A00] font-bold">
-                      {proj.state}
-                    </td>
-                    <td
-                      className={`p-3 font-bold ${
-                        proj.costVariancePercent > 20
-                          ? 'text-red-600'
-                          : 'text-amber-600'
-                      }`}
-                    >
-                      +{proj.costVariancePercent.toFixed(1)}%
-                    </td>
-                    <td className="p-3 font-bold text-amber-600 whitespace-nowrap">
-                      {proj.scheduleDelayMonths} M
-                    </td>
-                    <td className="p-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-extrabold border ${
-                          proj.riskLevel === 'CRITICAL' ||
-                          proj.riskLevel === 'HIGH'
-                            ? 'bg-red-50 text-red-700 border-red-200'
-                            : proj.riskLevel === 'MEDIUM'
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}
-                      >
-                        <ShieldAlert size={12} />
-                        {proj.riskScore} {proj.riskLevel}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-8 text-center text-slate-500 space-y-2">
-              <Info size={24} className="text-[#F59A00] mx-auto" />
-              <div>
-                No projects match the current search filter "
-                <strong>{searchQuery}</strong>".
-              </div>
-              <button
-                onClick={clearFilters}
-                className="mt-2 px-4 py-1.5 rounded-lg border border-slate-200 bg-[#FFF9EF] text-[#17365D] text-xs font-bold hover:bg-amber-50 cursor-pointer"
-              >
-                Clear Search Filter
-              </button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
+};
+
+/* =====================================================
+   2. ANIMATED BACKGROUND
+===================================================== */
+export const AnimatedBackground: React.FC = () => {
+  const images = [
+    { url: '/assets/images/expressway.jpg', title: 'National Highways & Cable Expressway Corridor' },
+    { url: '/assets/images/railways.jpg', title: 'High-Speed Vande Bharat Rail Viaduct' },
+    { url: '/assets/images/energy.jpg', title: 'National Renewable Solar & Wind Energy Grid' },
+    { url: '/assets/images/port.jpg', title: 'Deep-Water Maritime Port & Container Logistics' },
+    { url: '/assets/images/urban.jpg', title: 'Smart City Metro & Urban Infrastructure' },
+  ];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % images.length);
+    }, 5500);
+    return () => clearInterval(timer);
+  }, [images.length]);
+
+  return (
+    <div
+      className="paimana-animated-bg-wrapper"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+      }}
+    >
+      {images.map((img, index) => {
+        const isActive = index === currentIndex;
+        return (
+          <div
+            key={img.url}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `url("${img.url}")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center center',
+              opacity: isActive ? 1 : 0,
+              transform: isActive ? 'scale(1.04)' : 'scale(1.0)',
+              transition: 'opacity 1.8s ease-in-out, transform 5.5s ease-out',
+              filter: 'brightness(0.95) contrast(1.05) saturate(1.1)',
+            }}
+          />
+        );
+      })}
+
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '140px',
+          background: 'linear-gradient(to top, rgba(23, 54, 93, 0.4) 0%, transparent 100%)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '22px',
+          right: '25px',
+          zIndex: 10,
+          backgroundColor: '#FFFFFF',
+          border: '2px solid #F59A00',
+          borderRadius: '25px',
+          padding: '0.45rem 1.1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.55rem',
+          boxShadow: '0 8px 24px rgba(23, 54, 93, 0.2)',
+          fontSize: '0.78rem',
+          fontWeight: 800,
+          color: '#17365D',
+          pointerEvents: 'auto',
+        }}
+      >
+        <span
+          className="animate-pulse-slow"
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: '#F59A00',
+            display: 'inline-block',
+          }}
+        />
+        <span>Live Infrastructure: {images[currentIndex].title}</span>
+      </div>
+    </div>
+  );
+};
+
+/* =====================================================
+   3. NAVBAR
+===================================================== */
+interface NavLink {
+  name: string;
+  href: string;
 }
+
+export const Navbar: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState('Home');
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navLinks: NavLink[] = [
+    { name: 'Home', href: '#home' },
+    { name: 'About', href: '#about' },
+    { name: 'Features', href: '#features' },
+    { name: 'Insights', href: '#insights' },
+    { name: 'Resources', href: '#resources' },
+    { name: 'Contact', href: '#contact' },
+  ];
+
+  const handleNavClick = (e: React.MouseEvent, link: NavLink) => {
+    e.preventDefault();
+    setActiveNav(link.name);
+    setMobileOpen(false);
+
+    if (location.pathname !== '/') {
+      navigate('/' + link.href);
+      return;
+    }
+
+    if (link.href === '#home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      const elem = document.querySelector(link.href);
+      if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <>
+      <header className={`paimana-navbar ${scrolled ? 'scrolled' : ''}`}>
+        <div className="paimana-navbar-container" style={{ padding: '0.85rem 2rem' }}>
+          <div
+            style={{ cursor: 'pointer' }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          >
+            <Logo variant="full" />
+          </div>
+
+          <nav className="desktop-nav-menu" style={{ gap: '1.85rem', alignItems: 'center' }}>
+            {navLinks.map((link) => {
+              const isActive = activeNav === link.name;
+              return (
+                <a
+                  key={link.name}
+                  href={link.href}
+                  onClick={(e) => handleNavClick(e, link)}
+                  style={{
+                    textDecoration: 'none',
+                    fontSize: '0.92rem',
+                    fontWeight: isActive ? 800 : 600,
+                    color: isActive ? '#F59A00' : '#17365D',
+                    position: 'relative',
+                    padding: '0.25rem 0.2rem',
+                    transition: 'color 0.2s ease',
+                  }}
+                >
+                  {link.name}
+                  {isActive && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '-6px',
+                        left: 0,
+                        right: 0,
+                        height: '2px',
+                        backgroundColor: '#F59A00',
+                        borderRadius: '2px',
+                      }}
+                    />
+                  )}
+                </a>
+              );
+            })}
+          </nav>
+
+          <div className="desktop-nav-buttons" style={{ alignItems: 'center', gap: '0.85rem' }}>
+            <button
+              onClick={() => navigate('/workspace/login')}
+              className="btn-secondary"
+              style={{
+                padding: '0.65rem 1.35rem',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '10px',
+                backgroundColor: '#FFFFFF',
+                border: '1.5px solid #EAE2D5',
+                color: '#17365D',
+              }}
+            >
+              Workspace Login
+            </button>
+
+            <button
+              onClick={() => navigate('/login')}
+              className="btn-primary"
+              style={{
+                padding: '0.65rem 1.35rem',
+                fontSize: '0.88rem',
+                fontWeight: 700,
+                borderRadius: '10px',
+                backgroundColor: '#F59A00',
+                color: '#FFFFFF',
+              }}
+            >
+              <span>Public Login</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#17365D',
+              cursor: 'pointer',
+              padding: '0.5rem',
+            }}
+            className="mobile-hamburger-btn"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileOpen ? <X size={26} /> : <Menu size={26} />}
+          </button>
+        </div>
+
+        {mobileOpen && (
+          <div
+            className="mobile-drawer"
+            style={{
+              backgroundColor: '#FFF9EF',
+              borderBottom: '1px solid #EAE2D5',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              boxShadow: '0 10px 25px rgba(23, 54, 93, 0.1)',
+            }}
+          >
+            {navLinks.map((link) => (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link)}
+                style={{
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: activeNav === link.name ? 700 : 500,
+                  color: activeNav === link.name ? '#F59A00' : '#17365D',
+                }}
+              >
+                {link.name}
+              </a>
+            ))}
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                marginTop: '0.5rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid #EAE2D5',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  navigate('/workspace/login');
+                }}
+                className="btn-secondary"
+                style={{ width: '100%', padding: '0.75rem' }}
+              >
+                Workspace Login
+              </button>
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  navigate('/login');
+                }}
+                className="btn-primary"
+                style={{ width: '100%', padding: '0.75rem' }}
+              >
+                Public Login →
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Latest Updates Ticker */}
+      <div
+        style={{
+          backgroundColor: '#EFF6FF',
+          borderBottom: '1px solid #BFDBFE',
+          borderTop: '1px solid #DBEAFE',
+          display: 'flex',
+          alignItems: 'center',
+          height: '36px',
+          overflow: 'hidden',
+          position: 'relative',
+          zIndex: 10,
+          fontSize: '0.82rem',
+          fontWeight: 700,
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#2563EB',
+            color: '#FFFFFF',
+            padding: '0 1.25rem',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            fontWeight: 800,
+            fontSize: '0.76rem',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            flexShrink: 0,
+            zIndex: 2,
+            boxShadow: '4px 0 10px rgba(37, 99, 235, 0.15)',
+          }}
+        >
+          <Info size={14} strokeWidth={2.5} />
+          <span>LATEST UPDATES</span>
+        </div>
+
+        <div
+          style={{
+            overflow: 'hidden',
+            width: '100%',
+            whiteSpace: 'nowrap',
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <style>{`
+            @keyframes updatesTicker {
+              0% { transform: translateX(100%); }
+              100% { transform: translateX(-100%); }
+            }
+            .ticker-text-track {
+              display: inline-block;
+              white-space: nowrap;
+              animation: updatesTicker 30s linear infinite;
+              color: #1D4ED8;
+              font-weight: 700;
+              font-size: 0.83rem;
+            }
+            .ticker-text-track:hover {
+              animation-play-state: paused;
+            }
+          `}</style>
+          <div className="ticker-text-track">
+            * 14 New Mega Projects added in Q4 FY26 &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; AI
+            Predictive Module v2.0 is now live for all central ministries
+            &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; Deadline for physical progress submission
+            extended to 31st March *
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+/* =====================================================
+   4. HERO
+===================================================== */
+export const Hero: React.FC = () => {
+  const navigate = useNavigate();
+
+  return (
+    <section id="home" className="hero-section">
+      <div
+        className="animate-fade-in"
+        style={{
+          maxWidth: '680px',
+          margin: '0',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          textAlign: 'left',
+          gap: '1.35rem',
+          padding: '1rem 0',
+        }}
+      >
+        <h1
+          className="hero-title"
+          style={{
+            fontSize: 'clamp(2.5rem, 4.5vw, 3.6rem)',
+            color: '#FFFFFF',
+            textShadow: '0 2px 12px rgba(0,0,0,0.4)',
+            textAlign: 'left',
+          }}
+        >
+          Predict Risks.
+          <br />
+          <span style={{ color: '#F59A00', display: 'inline-block' }}>
+            Protect Investments.
+          </span>
+          <br />
+          Build a Stronger India.
+        </h1>
+
+        <p
+          className="hero-description"
+          style={{
+            maxWidth: '640px',
+            color: '#FFFFFF',
+            fontSize: '1.08rem',
+            fontWeight: 500,
+            lineHeight: 1.65,
+            margin: '0',
+            textAlign: 'left',
+            textShadow: '0 1px 8px rgba(0,0,0,0.5)',
+          }}
+        >
+          PAIMANA transforms infrastructure monitoring with AI-powered early warning signals,
+          helping policymakers and agencies identify cost escalations and schedule delays before
+          they impact national development.
+        </p>
+
+        <div className="hero-ctas" style={{ gap: '1.25rem', justifyContent: 'flex-start' }}>
+          <button
+            onClick={() => navigate('/workspace/login')}
+            className="btn-primary"
+            style={{
+              padding: '0.85rem 1.8rem',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              borderRadius: '12px',
+              backgroundColor: '#F59A00',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 14px rgba(245, 154, 0, 0.35)',
+            }}
+          >
+            <span>Workspace Login</span>
+            <ArrowRight size={18} />
+          </button>
+
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn-secondary"
+            style={{
+              padding: '0.85rem 1.6rem',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              borderRadius: '12px',
+              backgroundColor: '#FFFFFF',
+              border: '1.5px solid #EAE2D5',
+              color: '#17365D',
+              boxShadow: '0 2px 8px rgba(23, 54, 93, 0.04)',
+            }}
+          >
+            <span>Explore Platform</span>
+            <BarChart2 size={20} style={{ color: '#F59A00' }} />
+          </button>
+        </div>
+
+        <div
+          className="hero-trust-bullets"
+          style={{
+            gap: '1.75rem',
+            marginTop: '1rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid rgba(255, 255, 255, 0.3)',
+            justifyContent: 'flex-start',
+            width: '100%',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+            }}
+          >
+            <Shield size={18} style={{ color: '#F59A00' }} />
+            <span>Secure</span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+            }}
+          >
+            <Server size={18} style={{ color: '#F59A00' }} />
+            <span>Data-Driven</span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              color: '#FFFFFF',
+              textShadow: '0 1px 6px rgba(0,0,0,0.4)',
+            }}
+          >
+            <CheckCircle2 size={18} style={{ color: '#F59A00' }} />
+            <span>Built for Bharat</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   5. TRUST SECTION
+===================================================== */
+export const TrustSection: React.FC = () => {
+  const partners = [
+    {
+      name: 'Ministry of Statistics & Programme Implementation',
+      code: 'MoSPI',
+      icon: Landmark,
+      color: '#2563EB',
+      bg: '#EFF6FF',
+      border: '#BFDBFE',
+    },
+    {
+      name: 'NITI Aayog Infrastructure Division',
+      code: 'NITI',
+      icon: Building2,
+      color: '#059669',
+      bg: '#ECFDF5',
+      border: '#A7F3D0',
+    },
+    {
+      name: 'Department for Promotion of Industry and Internal Trade',
+      code: 'DPIIT',
+      icon: Flag,
+      color: '#EA580C',
+      bg: '#FFF7ED',
+      border: '#FFEDD5',
+    },
+    {
+      name: 'PM GatiShakti National Master Plan',
+      code: 'PM GatiShakti',
+      icon: Compass,
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+      border: '#DDD6FE',
+    },
+    {
+      name: 'Smart Cities Mission Project Cell',
+      code: 'Smart Cities',
+      icon: ShieldCheck,
+      color: '#0D9488',
+      bg: '#CCFBF1',
+      border: '#99F6E4',
+    },
+  ];
+
+  return (
+    <section
+      style={{
+        padding: '3.5rem 2rem 4rem',
+        backgroundColor: '#FFFFFF',
+        position: 'relative',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '1320px',
+          margin: '0 auto',
+          backgroundColor: '#FFFFFF',
+          borderRadius: '24px',
+          border: '1.5px solid #E2E8F0',
+          boxShadow: '0 12px 36px rgba(15, 23, 42, 0.06)',
+          padding: '3rem 2.5rem',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.4rem 1.25rem',
+            backgroundColor: '#EFF6FF',
+            border: '1.5px solid #BFDBFE',
+            borderRadius: '30px',
+            fontSize: '0.82rem',
+            fontWeight: 800,
+            color: '#1D4ED8',
+            marginBottom: '1.1rem',
+            boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+          }}
+        >
+          <Landmark size={16} style={{ color: '#1D4ED8' }} />
+          <span>GOVERNMENT ENTERPRISE TRUST</span>
+        </div>
+
+        <h2
+          style={{
+            fontSize: 'clamp(1.85rem, 3.2vw, 2.5rem)',
+            fontWeight: 900,
+            color: '#0F172A',
+            letterSpacing: '-0.02em',
+            marginBottom: '0.65rem',
+            fontFamily: 'Outfit, sans-serif',
+          }}
+        >
+          Trusted by <span style={{ color: '#2563EB' }}>Government.</span>{' '}
+          <span style={{ color: '#EA580C' }}>Built for Impact.</span>
+        </h2>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+          <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+          <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+        </div>
+
+        <p
+          style={{
+            fontSize: '0.86rem',
+            fontWeight: 800,
+            color: '#64748B',
+            letterSpacing: '0.04em',
+            textTransform: 'uppercase',
+            marginBottom: '2.5rem',
+          }}
+        >
+          Designed for government infrastructure monitoring & policy decision-making
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '1.1rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {partners.map((p, i) => {
+            const Icon = p.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.8rem 1.5rem',
+                  backgroundColor: '#FFFFFF',
+                  border: `1.5px solid #E2E8F0`,
+                  borderRadius: '30px',
+                  color: '#0F172A',
+                  fontSize: '0.9rem',
+                  fontWeight: 800,
+                  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.borderColor = p.color;
+                  e.currentTarget.style.boxShadow = `0 10px 25px ${p.color}20`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(15, 23, 42, 0.04)';
+                }}
+              >
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: p.bg,
+                    border: `1.5px solid ${p.border}`,
+                    color: p.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon size={16} strokeWidth={2.4} />
+                </div>
+                <span>{p.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   6. FEATURE CARDS
+===================================================== */
+export const FeatureCards: React.FC = () => {
+  const navigate = useNavigate();
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const features = [
+    {
+      id: 'early-warning-system',
+      icon: ShieldAlert,
+      title: 'Early Warning System',
+      description:
+        'AI models detect risks early and provide actionable warnings before cost overruns materialize.',
+      tag: 'RISK DETECTION',
+      themeColor: '#2563EB',
+      bgColor: '#EFF6FF',
+      tagBg: '#EFF6FF',
+      tagColor: '#2563EB',
+      tagBorder: '#BFDBFE',
+      btnBg: '#2563EB',
+      btnHover: '#1D4ED8',
+    },
+    {
+      id: 'ai-powered-insights',
+      icon: TrendingUp,
+      title: 'AI-Powered Insights',
+      description:
+        'Explainable AI reveals the key underlying factors behind every project risk through SHAP attribution.',
+      tag: 'EXPLAINABLE AI',
+      themeColor: '#059669',
+      bgColor: '#ECFDF5',
+      tagBg: '#ECFDF5',
+      tagColor: '#059669',
+      tagBorder: '#A7F3D0',
+      btnBg: '#059669',
+      btnHover: '#047857',
+    },
+    {
+      id: 'data-driven-decisions',
+      icon: Database,
+      title: 'Data-Driven Decisions',
+      description:
+        'Transform historical infrastructure data into high-precision predictive intelligence.',
+      tag: 'DATA INTELLIGENCE',
+      themeColor: '#7C3AED',
+      bgColor: '#F5F3FF',
+      tagBg: '#F5F3FF',
+      tagColor: '#7C3AED',
+      tagBorder: '#DDD6FE',
+      btnBg: '#7C3AED',
+      btnHover: '#6D28D9',
+    },
+    {
+      id: 'collaborative-monitoring',
+      icon: Users,
+      title: 'Collaborative Monitoring',
+      description:
+        'Enable policymakers and monitoring agencies to act together with shared real-time intelligence.',
+      tag: 'MULTI-AGENCY',
+      themeColor: '#EA580C',
+      bgColor: '#FFF7ED',
+      tagBg: '#FFF7ED',
+      tagColor: '#EA580C',
+      tagBorder: '#FFEDD5',
+      btnBg: '#EA580C',
+      btnHover: '#C2410C',
+    },
+  ];
+
+  const trustPillars = [
+    { icon: ShieldCheck, title: 'Secure & Reliable', desc: 'Enterprise-grade security', color: '#2563EB', bg: '#EFF6FF' },
+    { icon: BarChart3, title: 'Data-Driven', desc: 'Evidence-based planning', color: '#059669', bg: '#ECFDF5' },
+    { icon: Users, title: 'Collaborative', desc: 'Stronger together', color: '#7C3AED', bg: '#F5F3FF' },
+    { icon: Building, title: 'Policy-Focused', desc: 'Impactful governance', color: '#EA580C', bg: '#FFF7ED' },
+  ];
+
+  return (
+    <section
+      id="features"
+      ref={sectionRef}
+      style={{ padding: '4rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1320px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.2rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>SMART GOVERNANCE. STRONGER INDIA.</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            Intelligent Solutions for{' '}
+            <span style={{ color: '#EA580C' }}>Smarter</span>{' '}
+            <span style={{ color: '#059669' }}>Infrastructure</span>
+          </h2>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '4px',
+              marginBottom: '1.1rem',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#CBD5E1', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            Advanced capabilities built to predict risks, optimize investments, and accelerate
+            national development.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+            gap: '1.5rem',
+            marginBottom: '3rem',
+          }}
+        >
+          {features.map((feat, idx) => {
+            const Icon = feat.icon;
+            return (
+              <div
+                key={idx}
+                onClick={() => navigate(`/capability/${feat.id}`)}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '20px',
+                  border: '1.5px solid #E2E8F0',
+                  boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  transition: 'transform 0.35s ease, box-shadow 0.3s ease, border-color 0.3s ease',
+                  opacity: isVisible ? 1 : 0,
+                  transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
+                  transitionDelay: `${idx * 0.1}s`,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-6px)';
+                  e.currentTarget.style.boxShadow = `0 20px 40px ${feat.themeColor}1A`;
+                  e.currentTarget.style.borderColor = feat.themeColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.06)';
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                }}
+              >
+                <div style={{ padding: '2rem 1.75rem 3.5rem', position: 'relative', zIndex: 1 }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '1.5rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '16px',
+                        backgroundColor: feat.themeColor,
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 8px 18px ${feat.themeColor}40`,
+                      }}
+                    >
+                      <Icon size={24} strokeWidth={2.4} />
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        color: feat.tagColor,
+                        backgroundColor: feat.tagBg,
+                        border: `1.5px solid ${feat.tagBorder}`,
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '20px',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {feat.tag}
+                    </span>
+                  </div>
+
+                  <h3
+                    style={{
+                      fontSize: '1.28rem',
+                      fontWeight: 900,
+                      color: '#0F172A',
+                      marginBottom: '0.75rem',
+                      fontFamily: 'Outfit, sans-serif',
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {feat.title}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: '0.92rem',
+                      lineHeight: 1.6,
+                      color: '#64748B',
+                      fontWeight: 400,
+                    }}
+                  >
+                    {feat.description}
+                  </p>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/capability/${feat.id}`);
+                  }}
+                  style={{
+                    backgroundColor: feat.btnBg,
+                    color: '#FFFFFF',
+                    padding: '0.95rem 1.5rem',
+                    border: 'none',
+                    fontWeight: 800,
+                    fontSize: '0.92rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s ease',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = feat.btnHover)}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = feat.btnBg)}
+                >
+                  <span>Explore Capability</span>
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '20px',
+            border: '1.5px solid #E2E8F0',
+            boxShadow: '0 8px 25px rgba(15, 23, 42, 0.04)',
+            padding: '1.25rem 2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1.5rem',
+            alignItems: 'center',
+          }}
+        >
+          {trustPillars.map((tp, i) => {
+            const TIcon = tp.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.85rem',
+                  paddingRight: i < trustPillars.length - 1 ? '1rem' : 0,
+                  borderRight: i < trustPillars.length - 1 ? '1px solid #F1F5F9' : 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    backgroundColor: tp.bg,
+                    color: tp.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <TIcon size={20} strokeWidth={2.2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
+                    {tp.title}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: '#64748B', fontWeight: 500 }}>
+                    {tp.desc}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   7. ABOUT SECTION
+===================================================== */
+export const AboutSection: React.FC = () => {
+  const cards = [
+    {
+      value: '1,981',
+      label: 'Active Infrastructure Projects',
+      badge: '↑ 12.4% MoSPI Portfolio',
+      icon: Layers,
+      themeColor: '#2563EB',
+      bgColor: '#EFF6FF',
+      borderColor: '#BFDBFE',
+      badgeBg: '#EFF6FF',
+      badgeColor: '#2563EB',
+      badgeBorder: '#BFDBFE',
+    },
+    {
+      value: '₹150+ Cr',
+      label: 'Project Capital Under Monitoring',
+      badge: 'National Infrastructure Pipeline',
+      icon: TrendingUp,
+      themeColor: '#059669',
+      bgColor: '#ECFDF5',
+      borderColor: '#A7F3D0',
+      badgeBg: '#ECFDF5',
+      badgeColor: '#059669',
+      badgeBorder: '#A7F3D0',
+    },
+    {
+      value: 'AI-Powered',
+      label: 'Predictive Risk Intelligence',
+      badge: 'SHAP Explainable Machine Learning',
+      icon: Cpu,
+      themeColor: '#EA580C',
+      bgColor: '#FFF7ED',
+      borderColor: '#FFEDD5',
+      badgeBg: '#FFF7ED',
+      badgeColor: '#EA580C',
+      badgeBorder: '#FFEDD5',
+    },
+  ];
+
+  const trustPillars = [
+    {
+      icon: ShieldCheck,
+      title: 'Secure & Reliable',
+      desc: 'Enterprise-grade security for critical data',
+      color: '#2563EB',
+      bg: '#EFF6FF',
+    },
+    {
+      icon: Database,
+      title: 'Data-Driven',
+      desc: 'Evidence-based planning for better outcomes',
+      color: '#059669',
+      bg: '#ECFDF5',
+    },
+    {
+      icon: Users,
+      title: 'Collaborative',
+      desc: 'Stronger together with real-time intelligence',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+    },
+    {
+      icon: Landmark,
+      title: 'Policy-Focused',
+      desc: 'Enabling impactful governance decisions',
+      color: '#EA580C',
+      bg: '#FFF7ED',
+    },
+  ];
+
+  return (
+    <section
+      id="about"
+      style={{ padding: '4.5rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1.1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>DATA-DRIVEN GOVERNANCE</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            From Reactive Monitoring to{' '}
+            <span style={{ color: '#2563EB' }}>Predictive</span>{' '}
+            <span style={{ color: '#059669' }}>Intelligence</span>
+          </h2>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto 1.1rem',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            Traditional monitoring tells us what happened. PAIMANA helps decision-makers understand
+            what is likely to happen next—and why.
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1.75rem',
+            marginBottom: '3rem',
+          }}
+        >
+          {cards.map((c, idx) => {
+            const Icon = c.icon;
+            return (
+              <div
+                key={idx}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '24px',
+                  border: `1.5px solid ${c.borderColor}`,
+                  boxShadow: '0 12px 36px rgba(15, 23, 42, 0.06)',
+                  padding: '2.5rem 2rem 5.5rem',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'transform 0.35s ease, box-shadow 0.35s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-6px)';
+                  e.currentTarget.style.boxShadow = `0 20px 45px ${c.themeColor}20`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 12px 36px rgba(15, 23, 42, 0.06)';
+                }}
+              >
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: c.themeColor,
+                    color: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 8px 20px ${c.themeColor}40`,
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  <Icon size={26} strokeWidth={2.4} />
+                </div>
+
+                <div
+                  style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontSize: c.value === 'AI-Powered' ? '2.3rem' : '2.8rem',
+                    fontWeight: 900,
+                    color: c.themeColor,
+                    letterSpacing: '-0.03em',
+                    lineHeight: 1.1,
+                    marginBottom: '0.4rem',
+                  }}
+                >
+                  {c.value}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: '1.02rem',
+                    fontWeight: 800,
+                    color: '#0F172A',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  {c.label}
+                </div>
+
+                <span
+                  style={{
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    color: c.badgeColor,
+                    backgroundColor: c.badgeBg,
+                    border: `1.5px solid ${c.badgeBorder}`,
+                    padding: '0.3rem 0.85rem',
+                    borderRadius: '20px',
+                    letterSpacing: '0.02em',
+                    position: 'relative',
+                    zIndex: 2,
+                  }}
+                >
+                  {c.badge}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '24px',
+            border: '1.5px solid #E2E8F0',
+            boxShadow: '0 8px 30px rgba(15, 23, 42, 0.04)',
+            padding: '1.35rem 2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: '1.5rem',
+            alignItems: 'center',
+          }}
+        >
+          {trustPillars.map((tp, i) => {
+            const TIcon = tp.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.85rem',
+                  paddingRight: i < trustPillars.length - 1 ? '1rem' : 0,
+                  borderRight: i < trustPillars.length - 1 ? '1px solid #F1F5F9' : 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    backgroundColor: tp.bg,
+                    color: tp.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <TIcon size={20} strokeWidth={2.2} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0F172A' }}>
+                    {tp.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.74rem',
+                      color: '#64748B',
+                      fontWeight: 500,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {tp.desc}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   8. HOW IT WORKS
+===================================================== */
+export const HowItWorks: React.FC = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const steps = [
+    {
+      step: '01',
+      title: 'Collect',
+      desc: 'Historical CUF and infrastructure project data streams.',
+      icon: Database,
+      tag: 'DATA STREAMS',
+      themeColor: '#2563EB',
+      bgColor: '#EFF6FF',
+      borderColor: '#BFDBFE',
+      badgeBg: '#EFF6FF',
+      badgeColor: '#2563EB',
+      badgeBorder: '#BFDBFE',
+    },
+    {
+      step: '02',
+      title: 'Analyze',
+      desc: 'AI/ML risk attribution models identify underlying patterns.',
+      icon: Cpu,
+      tag: 'AI/ML MODELS',
+      themeColor: '#059669',
+      bgColor: '#ECFDF5',
+      borderColor: '#A7F3D0',
+      badgeBg: '#ECFDF5',
+      badgeColor: '#059669',
+      badgeBorder: '#A7F3D0',
+    },
+    {
+      step: '03',
+      title: 'Predict',
+      desc: 'Forecast future cost variance and schedule slippage risks.',
+      icon: TrendingUp,
+      tag: 'FORECASTING',
+      themeColor: '#7C3AED',
+      bgColor: '#F5F3FF',
+      borderColor: '#DDD6FE',
+      badgeBg: '#F5F3FF',
+      badgeColor: '#7C3AED',
+      badgeBorder: '#DDD6FE',
+    },
+    {
+      step: '04',
+      title: 'Act',
+      desc: 'Deliver actionable early warnings for proactive policy intervention.',
+      icon: AlertTriangle,
+      tag: 'EARLY WARNINGS',
+      themeColor: '#EA580C',
+      bgColor: '#FFF7ED',
+      borderColor: '#FFEDD5',
+      badgeBg: '#FFF7ED',
+      badgeColor: '#EA580C',
+      badgeBorder: '#FFEDD5',
+    },
+  ];
+
+  return (
+    <section
+      id="methodology"
+      ref={sectionRef}
+      style={{ padding: '4.5rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1320px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1.1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>PAIMANA METHODOLOGY</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            How <span style={{ color: '#EA580C' }}>PAIMANA</span>{' '}
+            <span style={{ color: '#2563EB' }}>Operates</span>
+          </h2>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              marginBottom: '1.1rem',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            A seamless four-step pipeline connecting raw infrastructure monitoring data to
+            proactive policy intervention.
+          </p>
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <div
+            style={{
+              position: 'absolute',
+              top: '52px',
+              left: '10%',
+              right: '10%',
+              height: '4px',
+              background:
+                'linear-gradient(90deg, #2563EB 0%, #059669 33%, #7C3AED 66%, #EA580C 100%)',
+              borderRadius: '4px',
+              zIndex: 0,
+              opacity: isVisible ? 0.7 : 0.2,
+              transition: 'opacity 1s ease-in-out',
+            }}
+          />
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '1.5rem',
+              position: 'relative',
+              zIndex: 1,
+            }}
+          >
+            {steps.map((st, i) => {
+              const StepIcon = st.icon;
+              return (
+                <div
+                  key={i}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '24px',
+                    border: `1.5px solid ${st.borderColor}`,
+                    boxShadow: '0 10px 30px rgba(15, 23, 42, 0.06)',
+                    padding: '2.25rem 1.6rem 2.5rem',
+                    textAlign: 'center',
+                    position: 'relative',
+                    transition: 'transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
+                    opacity: isVisible ? 1 : 0,
+                    transform: isVisible ? 'translateY(0)' : 'translateY(40px)',
+                    transitionDelay: `${i * 0.12}s`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-8px)';
+                    e.currentTarget.style.boxShadow = `0 20px 45px ${st.themeColor}20`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.06)';
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      backgroundColor: st.themeColor,
+                      color: '#FFFFFF',
+                      fontFamily: 'Outfit, sans-serif',
+                      fontWeight: 900,
+                      fontSize: '1.3rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 1.5rem',
+                      boxShadow: `0 8px 24px ${st.themeColor}50`,
+                      border: '4px solid #FFFFFF',
+                      position: 'relative',
+                      zIndex: 2,
+                    }}
+                  >
+                    {st.step}
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '10px',
+                        backgroundColor: st.bgColor,
+                        color: st.themeColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <StepIcon size={18} strokeWidth={2.4} />
+                    </div>
+                    <h3
+                      style={{
+                        fontSize: '1.35rem',
+                        fontWeight: 900,
+                        color: '#0F172A',
+                        fontFamily: 'Outfit, sans-serif',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {st.title}
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '1rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 800,
+                        color: st.badgeColor,
+                        backgroundColor: st.badgeBg,
+                        border: `1px solid ${st.badgeBorder}`,
+                        padding: '0.2rem 0.65rem',
+                        borderRadius: '20px',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {st.tag}
+                    </span>
+                  </div>
+
+                  <p
+                    style={{
+                      fontSize: '0.92rem',
+                      lineHeight: 1.6,
+                      color: '#64748B',
+                      fontWeight: 400,
+                    }}
+                  >
+                    {st.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   9. CAPABILITIES
+===================================================== */
+export const Capabilities: React.FC = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.1 }
+    );
+    if (sectionRef.current) observer.observe(sectionRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const capabilities = [
+    {
+      icon: BarChart3,
+      title: 'Composite Risk Scoring',
+      desc: 'Unified risk score calculated across financial, physical, and administrative parameters.',
+      tag: 'RISK INDEX',
+      themeColor: '#2563EB',
+      bgColor: '#EFF6FF',
+      borderColor: '#BFDBFE',
+      tagBg: '#EFF6FF',
+      tagColor: '#2563EB',
+      tagBorder: '#BFDBFE',
+    },
+    {
+      icon: DollarSign,
+      title: 'Cost Escalation Analysis',
+      desc: 'Detect early budget variances and project final cost overruns before financial commitments.',
+      tag: 'BUDGET VARIANCE',
+      themeColor: '#EA580C',
+      bgColor: '#FFF7ED',
+      borderColor: '#FFEDD5',
+      tagBg: '#FFF7ED',
+      tagColor: '#EA580C',
+      tagBorder: '#FFEDD5',
+    },
+    {
+      icon: Clock,
+      title: 'Schedule Delay Prediction',
+      desc: 'Forecast milestone slippages months in advance using historical completion velocity.',
+      tag: 'TIMELINE FORECAST',
+      themeColor: '#D97706',
+      bgColor: '#FEF3C7',
+      borderColor: '#FDE68A',
+      tagBg: '#FEF3C7',
+      tagColor: '#D97706',
+      tagBorder: '#FDE68A',
+    },
+    {
+      icon: BrainCircuit,
+      title: 'Explainable AI',
+      desc: 'SHAP attribution models explain why a project is flagged as high risk down to root drivers.',
+      tag: 'SHAP ATTRIBUTION',
+      themeColor: '#7C3AED',
+      bgColor: '#F5F3FF',
+      borderColor: '#DDD6FE',
+      tagBg: '#F5F3FF',
+      tagColor: '#7C3AED',
+      tagBorder: '#DDD6FE',
+    },
+    {
+      icon: Bot,
+      title: 'AI Intelligence Assistant',
+      desc: 'Natural language query interface over national infrastructure project databases.',
+      tag: 'NLP QUERY',
+      themeColor: '#059669',
+      bgColor: '#ECFDF5',
+      borderColor: '#A7F3D0',
+      tagBg: '#ECFDF5',
+      tagColor: '#059669',
+      tagBorder: '#A7F3D0',
+    },
+    {
+      icon: LineChart,
+      title: 'Statistical Benchmarking',
+      desc: 'Compare project execution timelines against peer sector baselines and regional averages.',
+      tag: 'PEER COMPARISON',
+      themeColor: '#0D9488',
+      bgColor: '#CCFBF1',
+      borderColor: '#99F6E4',
+      tagBg: '#CCFBF1',
+      tagColor: '#0D9488',
+      tagBorder: '#99F6E4',
+    },
+    {
+      icon: Bell,
+      title: 'Smart Alerts',
+      desc: 'Automated threshold notifications sent directly to monitoring officers and department heads.',
+      tag: 'REAL-TIME',
+      themeColor: '#E11D48',
+      bgColor: '#FFE4E6',
+      borderColor: '#FECDD3',
+      tagBg: '#FFE4E6',
+      tagColor: '#E11D48',
+      tagBorder: '#FECDD3',
+    },
+    {
+      icon: FileSpreadsheet,
+      title: 'Executive Reporting',
+      desc: 'One-click generation of audit-ready summary briefs for cabinet meetings and reviews.',
+      tag: 'AUDIT READY',
+      themeColor: '#4F46E5',
+      bgColor: '#E0E7FF',
+      borderColor: '#C7D2FE',
+      tagBg: '#E0E7FF',
+      tagColor: '#4F46E5',
+      tagBorder: '#C7D2FE',
+    },
+  ];
+
+  return (
+    <section
+      id="insights"
+      ref={sectionRef}
+      style={{ padding: '4.5rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1320px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1.1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>CORE CAPABILITIES</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            One Platform. <span style={{ color: '#EA580C' }}>Complete</span>{' '}
+            <span style={{ color: '#059669' }}>Risk Intelligence.</span>
+          </h2>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              marginBottom: '1.1rem',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            Comprehensive AI-driven tools built specifically to solve infrastructure monitoring
+            complexities.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '1.5rem',
+          }}
+        >
+          {capabilities.map((cap, i) => {
+            const Icon = cap.icon;
+            return (
+              <div
+                key={i}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '20px',
+                  border: `1.5px solid ${cap.borderColor}`,
+                  boxShadow: '0 10px 28px rgba(15, 23, 42, 0.05)',
+                  padding: '2rem 1.6rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease',
+                  opacity: isVisible ? 1 : 0,
+                  transform: isVisible ? 'translateY(0)' : 'translateY(35px)',
+                  transitionDelay: `${i * 0.08}s`,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-6px)';
+                  e.currentTarget.style.boxShadow = `0 18px 40px ${cap.themeColor}1E`;
+                  e.currentTarget.style.borderColor = cap.themeColor;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 28px rgba(15, 23, 42, 0.05)';
+                  e.currentTarget.style.borderColor = cap.borderColor;
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '1.35rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '16px',
+                      backgroundColor: cap.themeColor,
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: `0 8px 18px ${cap.themeColor}38`,
+                    }}
+                  >
+                    <Icon size={24} strokeWidth={2.4} />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: '0.64rem',
+                      fontWeight: 800,
+                      color: cap.tagColor,
+                      backgroundColor: cap.tagBg,
+                      border: `1.5px solid ${cap.tagBorder}`,
+                      padding: '0.22rem 0.65rem',
+                      borderRadius: '20px',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {cap.tag}
+                  </span>
+                </div>
+
+                <h3
+                  style={{
+                    fontSize: '1.2rem',
+                    fontWeight: 900,
+                    color: '#0F172A',
+                    marginBottom: '0.65rem',
+                    fontFamily: 'Outfit, sans-serif',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  {cap.title}
+                </h3>
+                <p
+                  style={{
+                    fontSize: '0.9rem',
+                    lineHeight: 1.6,
+                    color: '#64748B',
+                    fontWeight: 400,
+                  }}
+                >
+                  {cap.desc}
+                </p>
+
+                <div
+                  style={{
+                    height: '3px',
+                    width: '40px',
+                    backgroundColor: cap.themeColor,
+                    borderRadius: '2px',
+                    marginTop: '1.35rem',
+                    opacity: 0.8,
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   10. AI ASSISTANT PREVIEW
+===================================================== */
+export const AIAssistantPreview: React.FC = () => {
+  const navigate = useNavigate();
+  const [selectedPrompt, setSelectedPrompt] = useState(
+    'Summarize the bottlenecks in the Transport sector.'
+  );
+  const [aiText, setAiText] = useState(
+    'Transport projects show elevated risk primarily due to land acquisition delays, funding constraints and schedule slippage across multiple projects.'
+  );
+
+  const prompts = [
+    {
+      q: 'Summarize the bottlenecks in the Transport sector.',
+      a: 'Transport projects show elevated risk primarily due to land acquisition delays, funding constraints and schedule slippage across multiple projects.',
+    },
+    {
+      q: 'Which projects are at highest risk?',
+      a: 'Currently, 5 mega transport and energy projects (including Delhi-Mumbai Expressway PIM-1042 and Polavaram Hydro Unit PIM-1003) exhibit critical risk scores >75%.',
+    },
+    {
+      q: 'Why is this project high risk?',
+      a: 'Project PIM-1042 is flagged high risk primarily due to a 32% SHAP attribution on land acquisition delays and a 24% shortfall in quarterly state equity release.',
+    },
+    {
+      q: 'Which sectors have the highest cost escalation?',
+      a: 'Railways and Urban Infrastructure show the highest relative cost escalation at +18.4% and +14.2% over initial sanctioned estimates.',
+    },
+  ];
+
+  const handlePromptClick = (p: { q: string; a: string }) => {
+    setSelectedPrompt(p.q);
+    setAiText(p.a);
+  };
+
+  return (
+    <section
+      id="ai-assistant-preview"
+      style={{ padding: '4.5rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1.1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>PAIMANA INTELLIGENCE</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            Ask Your <span style={{ color: '#2563EB' }}>Infrastructure Data</span>{' '}
+            <span style={{ color: '#EA580C' }}>Anything.</span>
+          </h2>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              marginBottom: '1.1rem',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            Query thousands of project monitoring documents and real-time risk feeds in plain
+            English.
+          </p>
+        </div>
+
+        <div
+          style={{
+            borderRadius: '24px',
+            border: '1.5px solid #E2E8F0',
+            boxShadow: '0 16px 45px rgba(15, 23, 42, 0.07)',
+            overflow: 'hidden',
+            backgroundColor: '#FFFFFF',
+            maxWidth: '960px',
+            margin: '0 auto',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#0F172A',
+              padding: '1.2rem 2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderBottom: '1px solid #1E293B',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  backgroundColor: '#EA580C',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 14px rgba(234, 88, 12, 0.4)',
+                }}
+              >
+                <Bot size={22} strokeWidth={2.5} />
+              </div>
+              <div>
+                <div
+                  style={{
+                    fontSize: '1rem',
+                    fontWeight: 900,
+                    color: '#FFFFFF',
+                    fontFamily: 'Outfit, sans-serif',
+                  }}
+                >
+                  PAIMANA AI Assistant
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#94A3B8', fontWeight: 500 }}>
+                  Infrastructure Policy Intelligence Model
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/ai-assistant')}
+              style={{
+                padding: '0.6rem 1.25rem',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                borderRadius: '12px',
+                backgroundColor: '#EA580C',
+                color: '#FFFFFF',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)',
+                transition: 'background-color 0.2s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#C2410C')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#EA580C')}
+            >
+              <span>Explore AI Intelligence</span>
+              <ArrowRight size={16} />
+            </button>
+          </div>
+
+          <div
+            style={{
+              padding: '2.25rem 2rem',
+              backgroundColor: '#F8FAFC',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.5rem',
+            }}
+          >
+            <div
+              style={{
+                alignSelf: 'flex-end',
+                backgroundColor: '#0F172A',
+                color: '#FFFFFF',
+                borderRadius: '20px 20px 4px 20px',
+                padding: '0.95rem 1.4rem',
+                maxWidth: '82%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                boxShadow: '0 4px 16px rgba(15, 23, 42, 0.15)',
+              }}
+            >
+              <span style={{ fontSize: '0.95rem', fontWeight: 600, lineHeight: 1.5 }}>
+                {selectedPrompt}
+              </span>
+              <User size={18} style={{ color: '#EA580C', flexShrink: 0 }} />
+            </div>
+
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: '#FFFFFF',
+                border: '1.5px solid #E2E8F0',
+                borderRadius: '20px 20px 20px 4px',
+                padding: '1.4rem 1.6rem',
+                maxWidth: '88%',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '1rem',
+                boxShadow: '0 8px 24px rgba(15, 23, 42, 0.04)',
+              }}
+            >
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: '#FFF7ED',
+                  border: '1.5px solid #FFEDD5',
+                  color: '#EA580C',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  marginTop: '2px',
+                }}
+              >
+                <Bot size={20} strokeWidth={2.4} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 900,
+                    color: '#EA580C',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  PAIMANA INSIGHT
+                </div>
+                <p
+                  style={{
+                    lineHeight: 1.65,
+                    color: '#0F172A',
+                    fontSize: '0.96rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  {aiText}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid #E2E8F0' }}>
+              <div
+                style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  color: '#0F172A',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Try clicking a suggested query:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem' }}>
+                {prompts.map((p, idx) => {
+                  const isSelected = selectedPrompt === p.q;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handlePromptClick(p)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.84rem',
+                        fontWeight: isSelected ? 800 : 600,
+                        borderRadius: '20px',
+                        border: isSelected ? '1.5px solid #EA580C' : '1.5px solid #E2E8F0',
+                        backgroundColor: isSelected ? '#FFF7ED' : '#FFFFFF',
+                        color: isSelected ? '#EA580C' : '#475569',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 4px 12px rgba(234, 88, 12, 0.15)' : 'none',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      {p.q}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   11. ANALYTICS PREVIEW
+===================================================== */
+export const AnalyticsPreview: React.FC = () => {
+  const sectorRiskData = [
+    { sector: 'Transport', highRisk: 84, color: '#EF4444' },
+    { sector: 'Railways', highRisk: 62, color: '#EF4444' },
+    { sector: 'Water', highRisk: 45, color: '#F59A00' },
+    { sector: 'Energy', highRisk: 38, color: '#F59A00' },
+    { sector: 'Urban Dev', highRisk: 27, color: '#10B981' },
+  ];
+
+  const distributionData = [
+    { name: 'High Risk', value: 256, color: '#EF4444' },
+    { name: 'Medium Risk', value: 687, color: '#F59A00' },
+    { name: 'Low Risk', value: 1038, color: '#10B981' },
+  ];
+
+  const costTrendData = [
+    { year: '2021', escalation: 12.4 },
+    { year: '2022', escalation: 18.2 },
+    { year: '2023', escalation: 24.8 },
+    { year: '2024', escalation: 32.1 },
+    { year: '2025', escalation: 38.5 },
+    { year: '2026', escalation: 42.78 },
+  ];
+
+  return (
+    <section
+      id="resources"
+      style={{ padding: '4.5rem 2rem 5rem', backgroundColor: '#FFFFFF', position: 'relative' }}
+    >
+      <div style={{ maxWidth: '1320px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 1.25rem',
+              backgroundColor: '#EFF6FF',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: '30px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              color: '#1D4ED8',
+              marginBottom: '1.1rem',
+              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.08)',
+            }}
+          >
+            <Landmark size={16} style={{ color: '#1D4ED8' }} />
+            <span>ANALYTICS PREVIEW</span>
+          </div>
+
+          <h2
+            style={{
+              fontSize: 'clamp(2rem, 3.8vw, 2.75rem)',
+              fontWeight: 900,
+              color: '#0F172A',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.85rem',
+              fontFamily: 'Outfit, sans-serif',
+            }}
+          >
+            Macro <span style={{ color: '#2563EB' }}>Infrastructure Risk</span>{' '}
+            <span style={{ color: '#059669' }}>Analytics</span>
+          </h2>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              marginBottom: '1.1rem',
+            }}
+          >
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#FF9933', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#2563EB', borderRadius: '2px' }} />
+            <div style={{ width: '28px', height: '4px', backgroundColor: '#138808', borderRadius: '2px' }} />
+          </div>
+
+          <p
+            style={{
+              color: '#64748B',
+              fontSize: '1.05rem',
+              maxWidth: '680px',
+              margin: '0 auto',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}
+          >
+            Real-time aggregation across national infrastructure portfolios, financial variances,
+            and sector vulnerability profiles.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '1.75rem',
+          }}
+        >
+          {/* Sector Risk */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              border: '1.5px solid #E2E8F0',
+              boxShadow: '0 12px 36px rgba(15, 23, 42, 0.06)',
+              padding: '2.25rem 2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '12px',
+                      backgroundColor: '#EFF6FF',
+                      color: '#2563EB',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <BarChart2 size={20} strokeWidth={2.4} />
+                  </div>
+                  <h3
+                    style={{
+                      fontFamily: 'Outfit, sans-serif',
+                      fontSize: '1.2rem',
+                      fontWeight: 900,
+                      color: '#0F172A',
+                    }}
+                  >
+                    Risk by Sector
+                  </h3>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    color: '#2563EB',
+                    backgroundColor: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '20px',
+                  }}
+                >
+                  5 SECTORS
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+                {sectorRiskData.map((s, idx) => (
+                  <div key={idx} style={{ fontSize: '0.88rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontWeight: 800,
+                        color: '#0F172A',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      <span>{s.sector}</span>
+                      <span style={{ color: s.color }}>{s.highRisk} High Risk</span>
+                    </div>
+                    <div
+                      style={{
+                        height: '9px',
+                        backgroundColor: '#F1F5F9',
+                        borderRadius: '99px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${(s.highRisk / 90) * 100}%`,
+                          height: '100%',
+                          backgroundColor: s.color,
+                          borderRadius: '99px',
+                          transition: 'width 0.8s ease',
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Risk Distribution */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              border: '1.5px solid #E2E8F0',
+              boxShadow: '0 12px 36px rgba(15, 23, 42, 0.06)',
+              padding: '2.25rem 2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '12px',
+                      backgroundColor: '#ECFDF5',
+                      color: '#059669',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <PieIcon size={20} strokeWidth={2.4} />
+                  </div>
+                  <h3
+                    style={{
+                      fontFamily: 'Outfit, sans-serif',
+                      fontSize: '1.2rem',
+                      fontWeight: 900,
+                      color: '#0F172A',
+                    }}
+                  >
+                    Risk Distribution
+                  </h3>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    color: '#059669',
+                    backgroundColor: '#ECFDF5',
+                    border: '1px solid #A7F3D0',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '20px',
+                  }}
+                >
+                  1,981 PROJECTS
+                </span>
+              </div>
+
+              <div style={{ width: '100%', height: '190px' }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={distributionData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {distributionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: '12px',
+                        backgroundColor: '#0F172A',
+                        color: '#FFFFFF',
+                        borderRadius: '10px',
+                        border: 'none',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-around',
+                fontSize: '0.88rem',
+                fontWeight: 800,
+                borderTop: '1.5px solid #F1F5F9',
+                paddingTop: '1rem',
+              }}
+            >
+              <div style={{ color: '#EF4444' }}>High: 256</div>
+              <div style={{ color: '#F59A00' }}>Med: 687</div>
+              <div style={{ color: '#10B981' }}>Low: 1,038</div>
+            </div>
+          </div>
+
+          {/* Cost Escalation */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '24px',
+              border: '1.5px solid #E2E8F0',
+              boxShadow: '0 12px 36px rgba(15, 23, 42, 0.06)',
+              padding: '2.25rem 2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1.2rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '12px',
+                      backgroundColor: '#FFF7ED',
+                      color: '#EA580C',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <TrendingUp size={20} strokeWidth={2.4} />
+                  </div>
+                  <h3
+                    style={{
+                      fontFamily: 'Outfit, sans-serif',
+                      fontSize: '1.2rem',
+                      fontWeight: 900,
+                      color: '#0F172A',
+                    }}
+                  >
+                    Cost Escalation (₹ Cr)
+                  </h3>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.66rem',
+                    fontWeight: 800,
+                    color: '#EA580C',
+                    backgroundColor: '#FFF7ED',
+                    border: '1px solid #FFEDD5',
+                    padding: '0.2rem 0.65rem',
+                    borderRadius: '20px',
+                  }}
+                >
+                  +42.78 CR TOTAL
+                </span>
+              </div>
+
+              <div style={{ width: '100%', height: '190px' }}>
+                <ResponsiveContainer>
+                  <RechartsLineChart data={costTrendData}>
+                    <XAxis dataKey="year" stroke="#94A3B8" fontSize={12} tickLine={false} />
+                    <YAxis stroke="#94A3B8" fontSize={12} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: '12px',
+                        backgroundColor: '#0F172A',
+                        color: '#FFFFFF',
+                        borderRadius: '10px',
+                        border: 'none',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="escalation"
+                      stroke="#EA580C"
+                      strokeWidth={3.5}
+                      dot={{ r: 4, fill: '#EA580C' }}
+                    />
+                  </RechartsLineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   12. CTA SECTION
+===================================================== */
+export const CTASection: React.FC = () => {
+  const navigate = useNavigate();
+
+  return (
+    <section
+      id="contact"
+      className="section-wrapper"
+      style={{ padding: '4rem 2rem 5rem 2rem' }}
+    >
+      <div className="cta-banner" style={{ borderRadius: '28px', padding: '4.5rem 3rem' }}>
+        <h2
+          style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontSize: 'clamp(2.2rem, 4.2vw, 3.2rem)',
+            fontWeight: 900,
+            color: '#FFFFFF',
+            lineHeight: 1.2,
+            marginBottom: '1.25rem',
+            letterSpacing: '-0.03em',
+          }}
+        >
+          Ready to Move From
+          <br />
+          <span style={{ color: '#F59A00' }}>Monitoring to Prediction?</span>
+        </h2>
+
+        <p
+          style={{
+            fontSize: '1.12rem',
+            color: '#E2E8F0',
+            maxWidth: '700px',
+            margin: '0 auto 2.5rem auto',
+            lineHeight: 1.75,
+          }}
+        >
+          Give policymakers and project administrators the intelligence they need to identify risks
+          early and intervene before they become costly.
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '1.25rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            onClick={() => navigate('/workspace/login')}
+            className="btn-primary"
+            style={{
+              padding: '0.95rem 2.4rem',
+              fontSize: '1.02rem',
+              borderRadius: '12px',
+              backgroundColor: '#F59A00',
+              color: '#FFFFFF',
+              boxShadow: '0 6px 20px rgba(245, 154, 0, 0.4)',
+            }}
+          >
+            <span>Enter Workspace</span>
+            <ArrowRight size={18} />
+          </button>
+
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn-secondary"
+            style={{
+              padding: '0.95rem 2.2rem',
+              fontSize: '1.02rem',
+              borderRadius: '12px',
+              backgroundColor: 'transparent',
+              color: '#FFFFFF',
+              borderColor: 'rgba(255, 255, 255, 0.4)',
+            }}
+          >
+            <BarChart2 size={18} style={{ color: '#F59A00' }} />
+            <span>Explore Intelligence</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* =====================================================
+   13. FOOTER
+===================================================== */
+export const Footer: React.FC = () => {
+  return (
+    <footer className="paimana-footer">
+      <div className="footer-container">
+        <div className="footer-grid">
+          <div>
+            <Logo theme="light" variant="full" size="large" />
+            <p className="footer-brand-desc">
+              Predictive intelligence for infrastructure development. Empowering policymakers and
+              monitoring agencies across India with actionable early warnings.
+            </p>
+          </div>
+
+          <div>
+            <h4 className="footer-col-title">Platform</h4>
+            <ul className="footer-links-list">
+              <li>
+                <Link to="/dashboard" className="footer-link-item">
+                  Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link to="/risk-intelligence" className="footer-link-item">
+                  Risk Intelligence
+                </Link>
+              </li>
+              <li>
+                <Link to="/ai-assistant" className="footer-link-item">
+                  AI Assistant
+                </Link>
+              </li>
+              <li>
+                <Link to="/analytics" className="footer-link-item">
+                  Analytics
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footer-col-title">Resources</h4>
+            <ul className="footer-links-list">
+              <li>
+                <a href="#insights" className="footer-link-item">
+                  Insights
+                </a>
+              </li>
+              <li>
+                <Link to="/reports" className="footer-link-item">
+                  Reports
+                </Link>
+              </li>
+              <li>
+                <a href="#documentation" className="footer-link-item">
+                  Documentation
+                </a>
+              </li>
+              <li>
+                <a href="#benchmarks" className="footer-link-item">
+                  Benchmarking
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="footer-col-title">Company</h4>
+            <ul className="footer-links-list">
+              <li>
+                <a href="#about" className="footer-link-item">
+                  About
+                </a>
+              </li>
+              <li>
+                <a href="#contact" className="footer-link-item">
+                  Contact
+                </a>
+              </li>
+              <li>
+                <a href="#privacy" className="footer-link-item">
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a href="#terms" className="footer-link-item">
+                  Terms of Service
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="footer-bottom-bar">
+          <div>
+            © 2026 PAIMANA. All rights reserved. Built for National Infrastructure Intelligence.
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem' }}>
+            <a href="#privacy" className="footer-link-item">
+              Privacy
+            </a>
+            <a href="#terms" className="footer-link-item">
+              Terms
+            </a>
+            <a href="#security" className="footer-link-item">
+              Security
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+/* =====================================================
+   14. MAIN HOME / LANDING PAGE
+===================================================== */
+export const Home: React.FC = () => {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: '#FFF9EF',
+        position: 'relative',
+      }}
+    >
+      {/* Hero Header Area with Animated Infrastructure Background */}
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <AnimatedBackground />
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <Navbar />
+          <Hero />
+        </div>
+      </div>
+
+      {/* Solid Background Container for lower sections */}
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 2,
+          backgroundColor: '#FFF9EF',
+        }}
+      >
+        <main>
+          <TrustSection />
+          <FeatureCards />
+          <AboutSection />
+          <HowItWorks />
+          <Capabilities />
+          <AIAssistantPreview />
+          <AnalyticsPreview />
+          <CTASection />
+        </main>
+        <Footer />
+      </div>
+    </div>
+  );
+};
+
+export default Home;
