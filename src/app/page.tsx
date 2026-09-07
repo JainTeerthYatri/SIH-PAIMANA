@@ -766,7 +766,7 @@ export const Hero: React.FC = () => {
           background-size: cover;
           background-position: center;
           transition: opacity 1s ease-in-out;
-          filter: brightness(0.42) contrast(1.25) saturate(1.1);
+          filter: brightness(0.95) contrast(1.1) saturate(1.1);
         }
 
         .anim-zoom-in { animation: animZoomIn 6s ease-out forwards; }
