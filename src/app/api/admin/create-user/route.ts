@@ -1,63 +1,79 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getDynamic2FACode } from '@/lib/auth-utils'
 
-// Supabase Admin Client using Service Role Key
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json()
-    const { email, password, role, monthlyCode } = body
+    const cookieHeader = request.headers.get('cookie') || ''
+    
+    const isGod = cookieHeader.includes('paimana_godmode=true')
+    const isAdmin = cookieHeader.includes('paimana_session=true')
 
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required fields.' },
-        { status: 400 }
-      )
+    if (!isGod && !isAdmin) {
+      return NextResponse.json({ error: 'UNAUTHORIZED ACCESS' }, { status: 403 })
     }
 
-    const targetRole = role || 'officer'
+    const body = await request.json()
+    const { email, password, role, secretKey } = body
 
-    // 1️⃣ Generate 8-Digit Cipher for Admin if not provided
-    let finalMonthlyCode = monthlyCode
-    if (targetRole === 'admin' && !finalMonthlyCode) {
-      finalMonthlyCode = Math.floor(10000000 + Math.random() * 90000000).toString()
+    if (!email || !password || !role || !secretKey) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // 2️⃣ Create User in Supabase Auth directly
+    // 🛡️ DUAL SECRETS
+    const SUPER_ADMIN_SECRET = process.env.MOSPI_SUPER_ADMIN_SECRET // Sirf Super Admin ke liye
+    const DAILY_2FA = getDynamic2FACode() // Normal Admin ke liye
+
+    // 🛡️ ROLE-BASED PRIVILEGE ENFORCEMENT
+    
+    if (isGod) {
+      // 1. SUPER ADMIN RULES
+      if (secretKey !== SUPER_ADMIN_SECRET) {
+        return NextResponse.json(
+          { error: 'GOD MODE FAILED: Invalid Super Admin Master Key.' }, 
+          { status: 403 }
+        )
+      }
+      // Super admin is allowed to create any role (admin or officer)
+      
+    } else if (isAdmin) {
+      // 2. NORMAL ADMIN RULES
+      if (role !== 'officer') {
+        return NextResponse.json(
+          { error: 'SECURITY BREACH: Privilege Escalation Blocked. Admins can only provision Officers.' }, 
+          { status: 403 }
+        )
+      }
+
+      if (secretKey !== DAILY_2FA) {
+        return NextResponse.json(
+          { error: 'PROVISIONING FAILED: Invalid or Expired Daily 2FA Code.' }, 
+          { status: 403 }
+        )
+      }
+    }
+
+    // 🚀 Create user silently
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        role: targetRole,
-        monthly_admin_code: targetRole === 'admin' ? finalMonthlyCode : null,
-      },
+      email: email,
+      password: password,
+      email_confirm: true, 
+      user_metadata: { role: role }
     })
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
-    }
+    if (error) throw error
 
-    return NextResponse.json({
-      success: true,
-      message: `Account successfully created as [${targetRole.toUpperCase()}]!`,
-      user: data.user,
-      monthlyCode: finalMonthlyCode,
-    })
-  } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
-      { status: 500 }
+      { message: `Account (${role.toUpperCase()}) Provisioned & Secured Successfully!`, user: data.user },
+      { status: 201 }
     )
+
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

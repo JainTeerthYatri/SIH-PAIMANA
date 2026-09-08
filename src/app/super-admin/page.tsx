@@ -50,17 +50,14 @@ export default function SuperAdminPage() {
     }
   }
 
+  // 🔴 FIXED: /register redirect hata diya hai taaki login ke baad direct dashboard khule
   useEffect(() => {
-    if (!document.cookie.includes('paimana_godmode=true')) {
-      window.location.href = '/register'
-      return
-    }
     fetchRealUsers()
   }, [])
 
   const handleLogout = () => {
     document.cookie = 'paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    window.location.href = '/register'
+    window.location.href = '/login' // 👈 Logout par register nahi, login page jayega
   }
 
   const formatDate = (dateString: string | null) => {
@@ -123,15 +120,12 @@ export default function SuperAdminPage() {
       return
     }
 
-    const secretKey = prompt('Enter God Mode Master Secret Key to authorize deletion:')
-    if (!secretKey) return
-
     try {
       setActionLoadingId(userId)
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, secretKey }),
+        body: JSON.stringify({ userId }),
       })
 
       const data = await res.json()
@@ -146,7 +140,7 @@ export default function SuperAdminPage() {
     }
   }
 
-  // ➕ CREATE NEW USER (NO SECRET KEY REQUIRED)
+  // ➕ CREATE NEW USER
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setModalStatus('loading')
@@ -171,7 +165,7 @@ export default function SuperAdminPage() {
       setTimeout(() => {
         setIsModalOpen(false)
         setModalStatus('idle')
-      }, 2000)
+      }, 1500)
     } catch (err: any) {
       setModalStatus('error')
       setModalMsg(err.message)
@@ -192,7 +186,7 @@ export default function SuperAdminPage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-red-500/30 relative overflow-x-hidden">
-      {/* Banner */}
+      {/* Top Banner */}
       <div className="bg-red-600 text-white text-xs py-1.5 px-6 flex justify-between items-center font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(239,68,68,0.5)]">
         <div className="flex items-center gap-2 animate-pulse">
           <ShieldAlert className="w-4 h-4" />
@@ -220,7 +214,7 @@ export default function SuperAdminPage() {
             className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all border border-slate-700 hover:border-red-500"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Terminate Session</span>
+            <span className="hidden sm:inline">Logout</span>
           </button>
         </div>
       </nav>
@@ -403,7 +397,7 @@ export default function SuperAdminPage() {
             <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
               <UserCog className="w-5 h-5 text-emerald-400" /> Provision Account
             </h2>
-            <p className="text-xs text-slate-400 mb-5">Create a new Admin or Officer account direct into DB.</p>
+            <p className="text-xs text-slate-400 mb-5">Create a new Admin or Officer account directly into DB.</p>
 
             {modalStatus === 'error' && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-start gap-2">
@@ -477,7 +471,6 @@ export default function SuperAdminPage() {
                     className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-mono tracking-widest outline-none focus:border-emerald-500 placeholder-slate-600"
                     placeholder="e.g. 84729104 (Optional)"
                   />
-                  <p className="text-[9px] text-slate-400">*Leave empty to let backend auto-generate cipher.</p>
                 </div>
               )}
 
