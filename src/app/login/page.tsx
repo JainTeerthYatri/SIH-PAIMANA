@@ -40,7 +40,7 @@ export default function LoginPage() {
       // 🛡️ STRICT DUAL-FACTOR SECURITY CHECK
       // Agar banda admin nahi hai, toh 2FA lazmi hai (No Bypass allowed!)
       if (role !== 'admin') {
-        
+
         // Check 1: Code daala bhi hai ya nahi?
         if (!twoFactor) {
           await supabase.auth.signOut()
@@ -48,10 +48,10 @@ export default function LoginPage() {
         }
 
         const currentDynamicCode = getDynamic2FACode()
-        
+
         // Check 2: Code sahi hai ya nahi?
         if (twoFactor !== currentDynamicCode) {
-          await supabase.auth.signOut() 
+          await supabase.auth.signOut()
           throw new Error('2FA FAILED: Invalid or expired Security Code. Please contact your Admin.')
         }
       }
@@ -59,11 +59,11 @@ export default function LoginPage() {
       // Step 2: Set session cookie for Middleware ONLY if 2FA is passed
       document.cookie = `paimana_session=true; path=/; max-age=86400`
 
-      // Step 3: Redirect based on role
+      // Step 3: Force redirect based on role (replace = no back-button bounce-back)
       if (role === 'admin') {
-        window.location.href = '/admin'
+        window.location.replace('/admin')
       } else {
-        window.location.href = '/dashboard'
+        window.location.replace('/dashboard')
       }
 
     } catch (err: any) {
@@ -84,10 +84,10 @@ export default function LoginPage() {
       const res = await fetch('/api/verify-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: godEmail, 
-          password: godPassword, 
-          secretKey: secretKey 
+        body: JSON.stringify({
+          email: godEmail,
+          password: godPassword,
+          secretKey: secretKey
         })
       })
       const data = await res.json()
@@ -96,7 +96,7 @@ export default function LoginPage() {
 
       if (data.role === 'super_admin') {
         document.cookie = "paimana_godmode=true; path=/; max-age=86400"
-        window.location.href = '/super-admin'
+        window.location.replace('/super-admin')
       } else {
         throw new Error('Key is valid but God Mode clearance is missing.')
       }
@@ -116,16 +116,16 @@ export default function LoginPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        
+
         {/* Toggle Buttons */}
         <div className="flex bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-6">
-          <button 
+          <button
             onClick={() => { setLoginType('standard'); setError(''); }}
             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${loginType === 'standard' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
           >
             Official Login
           </button>
-          <button 
+          <button
             onClick={() => { setLoginType('godmode'); setError(''); }}
             className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${loginType === 'godmode' ? 'bg-slate-900 text-red-400 shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
           >
@@ -167,7 +167,7 @@ export default function LoginPage() {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
                 <div className="relative">
@@ -201,7 +201,7 @@ export default function LoginPage() {
           {/* 🔴 GOD MODE LOGIN FORM (3-Factor Auth) */}
           {loginType === 'godmode' && (
             <form onSubmit={handleGodModeLogin} className="space-y-5 animate-in slide-in-from-right-4">
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-800 mb-2">Root Email</label>
