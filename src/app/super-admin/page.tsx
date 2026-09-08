@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ShieldAlert, Users, Activity, Key, LogOut, ShieldCheck, Database, RefreshCcw, Plus, X, Lock } from 'lucide-react'
+import { ShieldAlert, Users, Activity, Key, LogOut, ShieldCheck, Database, RefreshCcw, Plus, X, Lock, UserCog } from 'lucide-react'
 
 interface Officer {
   id: string
@@ -18,7 +18,8 @@ export default function SuperAdminPage() {
   const [newUser, setNewUser] = useState({ 
     email: '', 
     password: '', 
-    role: 'officer', 
+    role: 'admin', // Defaulted to Admin for fast creation
+    monthlyCode: '', // Optional initial cipher for Admin
     secretKey: '' 
   })
   const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -100,6 +101,7 @@ export default function SuperAdminPage() {
     }
   }
 
+  // ➕ CREATE NEW OFFICER / ADMIN / SUPER ADMIN
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setModalStatus('loading')
@@ -116,10 +118,10 @@ export default function SuperAdminPage() {
       if (!res.ok) throw new Error(data.error)
       
       setModalStatus('success')
-      setModalMsg(data.message)
+      setModalMsg(data.message || 'Account provisioned successfully!')
       fetchRealUsers() 
       
-      setNewUser({ email: '', password: '', role: 'officer', secretKey: '' }) 
+      setNewUser({ email: '', password: '', role: 'admin', monthlyCode: '', secretKey: '' }) 
       
       setTimeout(() => {
         setIsModalOpen(false)
@@ -132,11 +134,18 @@ export default function SuperAdminPage() {
     }
   }
 
+  // Helper to generate random 8-digit code inside form
+  const generateRandomCipher = () => {
+    const randomCode = Math.floor(10000000 + Math.random() * 90000000).toString()
+    setNewUser(prev => ({ ...prev, monthlyCode: randomCode }))
+  }
+
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Activity className="w-8 h-8 text-red-500 animate-spin" /></div>
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-red-500/30 relative overflow-x-hidden">
       
+      {/* Top Warning Ribbon */}
       <div className="bg-red-600 text-white text-xs py-1.5 px-6 flex justify-between items-center font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(239,68,68,0.5)]">
         <div className="flex items-center gap-2 animate-pulse">
           <ShieldAlert className="w-4 h-4" />
@@ -145,6 +154,7 @@ export default function SuperAdminPage() {
         <span className="hidden sm:inline">MoSPI Central Command</span>
       </div>
 
+      {/* Navbar */}
       <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -165,6 +175,7 @@ export default function SuperAdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
         
+        {/* Statistics Widgets */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl">
             <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl"><Users className="w-8 h-8" /></div>
@@ -174,7 +185,7 @@ export default function SuperAdminPage() {
             </div>
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl">
-            <div className="p-4 bg-emerald-500/10 text-emerald-500 rounded-xl"><ShieldCheck className="w-8 h-8" /></div>
+            <div className="p-4 bg-emerald-500/10 text-emerald-500 rounded-xl"><UserCog className="w-8 h-8" /></div>
             <div>
               <p className="text-sm font-bold text-slate-500 uppercase">Admins Active</p>
               <h3 className="text-3xl font-black text-white">
@@ -184,7 +195,7 @@ export default function SuperAdminPage() {
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl relative overflow-hidden">
             <div className="absolute -right-4 -bottom-4 opacity-10 text-purple-500"><Database className="w-24 h-24" /></div>
-            <div className="p-4 bg-purple-500/10 text-purple-500 rounded-xl relative z-10"><RefreshCcw className="w-8 h-8 animate-spin-slow" /></div>
+            <div className="p-4 bg-purple-500/10 text-purple-500 rounded-xl relative z-10"><RefreshCcw className="w-8 h-8" /></div>
             <div className="relative z-10">
               <p className="text-sm font-bold text-slate-500 uppercase">Supabase Connect</p>
               <h3 className="text-3xl font-black text-emerald-400">Live</h3>
@@ -192,6 +203,7 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
+        {/* Directory Table */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-4 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
@@ -201,10 +213,10 @@ export default function SuperAdminPage() {
             
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
-              Provision New Account
+              Provision New Admin / Officer
             </button>
           </div>
           
@@ -232,11 +244,11 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {officer.user_metadata?.role === 'super_admin' ? (
-                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-red-500/10 px-2 py-1 rounded">Super Admin</span>
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-red-500/10 border border-red-500/20 px-2 py-1 rounded">Super Admin</span>
                         ) : officer.user_metadata?.role === 'admin' ? (
-                          <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-emerald-500/10 px-2 py-1 rounded">Admin</span>
+                          <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded">Admin</span>
                         ) : (
-                          <span className="text-blue-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-blue-500/10 px-2 py-1 rounded">Officer</span>
+                          <span className="text-blue-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded">Officer</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -279,22 +291,25 @@ export default function SuperAdminPage() {
         </div>
       </main>
 
+      {/* 🚀 MODAL: Provision New Account (Supports Admin Creation) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
             <button 
               onClick={() => {
                 setIsModalOpen(false)
                 setModalStatus('idle')
-                setNewUser({ email: '', password: '', role: 'officer', secretKey: '' })
+                setNewUser({ email: '', password: '', role: 'admin', monthlyCode: '', secretKey: '' })
               }} 
               className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
             
-            <h2 className="text-xl font-bold text-white mb-2">Create New Account</h2>
-            <p className="text-sm text-slate-400 mb-6">Provision access for a new MoSPI official.</p>
+            <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+              <UserCog className="w-5 h-5 text-emerald-400" /> Provision Account
+            </h2>
+            <p className="text-xs text-slate-400 mb-5">Create a new Admin or Officer account with specific roles.</p>
             
             {modalStatus === 'error' && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-start gap-2">
@@ -309,64 +324,87 @@ export default function SuperAdminPage() {
               </div>
             )}
             
-            <form onSubmit={handleCreateUser} className="space-y-4">
+            <form onSubmit={handleCreateUser} className="space-y-3.5">
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1">Official Email</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Official Email Address *</label>
                 <input 
                   type="email" required 
                   value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-600" 
-                  placeholder="name@mospi.gov.in"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder-slate-600" 
+                  placeholder="admin@mospi.gov.in"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1">Temporary Password</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Temporary Password *</label>
                 <input 
                   type="password" required minLength={6}
                   value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-600" 
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all placeholder-slate-600" 
                   placeholder="••••••••"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-300 mb-1">Clearance Role</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Clearance Level / Role *</label>
                 <select 
                   value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                 >
-                  <option value="officer">Standard Officer (View Only)</option>
-                  <option value="admin">Admin (Manage Data)</option>
+                  <option value="admin">🟢 Admin (Gateway Access & Cipher)</option>
+                  <option value="officer">🔵 Officer (Standard Access & 2FA)</option>
+                  <option value="super_admin">🔴 Super Admin (Full God Mode)</option>
                 </select>
               </div>
 
-              <div className="pt-2">
-                <label className="block text-sm font-bold text-red-400 mb-1 flex items-center gap-1.5">
-                  <Lock className="w-4 h-4" />
-                  Admin Creation Key (Mandatory)
-                </label>
-                <div className="relative">
+              {/* Dynamic Field: 8-Digit Monthly Code for Admin */}
+              {newUser.role === 'admin' && (
+                <div className="p-3 bg-emerald-950/30 border border-emerald-500/30 rounded-xl space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[11px] font-bold text-emerald-400">8-Digit Monthly Cipher Code</label>
+                    <button
+                      type="button"
+                      onClick={generateRandomCipher}
+                      className="text-[10px] text-emerald-300 hover:underline flex items-center gap-1 font-semibold"
+                    >
+                      <RefreshCcw size={10} /> Auto-Generate
+                    </button>
+                  </div>
                   <input 
-                    type="password" required 
-                    value={newUser.secretKey} onChange={e => setNewUser({...newUser, secretKey: e.target.value})}
-                    className="w-full bg-slate-950 border border-red-500/50 rounded-xl px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all font-mono tracking-widest placeholder-slate-600" 
-                    placeholder="Enter Secondary Authorization"
+                    type="text" 
+                    maxLength={8}
+                    value={newUser.monthlyCode} 
+                    onChange={e => setNewUser({...newUser, monthlyCode: e.target.value})}
+                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-400 font-mono tracking-widest outline-none focus:border-emerald-500 placeholder-slate-600" 
+                    placeholder="e.g. 84729104 (Optional)"
                   />
+                  <p className="text-[9px] text-slate-400">*Leave empty to let backend auto-generate an 8-digit cipher.</p>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">*Required to verify your intent to create this user.</p>
+              )}
+
+              <div className="pt-1">
+                <label className="block text-xs font-bold text-red-400 mb-1 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5" />
+                  Admin Creation Key (Mandatory) *
+                </label>
+                <input 
+                  type="password" required 
+                  value={newUser.secretKey} onChange={e => setNewUser({...newUser, secretKey: e.target.value})}
+                  className="w-full bg-slate-950 border border-red-500/50 rounded-xl px-3.5 py-2 text-xs text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all font-mono tracking-widest placeholder-slate-600" 
+                  placeholder="Enter God Mode Master Secret"
+                />
               </div>
 
               <button 
                 type="submit" disabled={modalStatus === 'loading' || modalStatus === 'success'}
-                className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-xs shadow-lg"
               >
                 {modalStatus === 'loading' ? (
-                  <Activity className="w-5 h-5 animate-spin" />
+                  <Activity className="w-4 h-4 animate-spin" />
                 ) : modalStatus === 'success' ? (
-                  <ShieldCheck className="w-5 h-5" />
+                  <ShieldCheck className="w-4 h-4" />
                 ) : (
-                  'Provision Account'
+                  'Provision Admin / Officer Account'
                 )}
               </button>
             </form>
