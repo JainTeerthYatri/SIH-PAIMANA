@@ -97,7 +97,7 @@ Return ONLY a valid JSON array without markdown codeblocks:
 
       if (text) {
         aiResults = JSON.parse(text);
-        providerUsed = 'groq-llama-3.3 (GROQ_ANALYTICS_API_KEY)';
+        providerUsed = 'groq-llama-4.0 (GROQ_ANALYTICS_API_KEY)';
       }
     } catch (groqErr: any) {
       console.error('❌ Groq Analytics Key failed:', groqErr.message || groqErr);

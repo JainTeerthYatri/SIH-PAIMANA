@@ -19,19 +19,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, password, role, secretKey } = body
+    const { email, password, role, department, secretKey } = body
 
     if (!email || !password || !role || !secretKey) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
     // 🛡️ DUAL SECRETS
-    const SUPER_ADMIN_SECRET = process.env.MOSPI_SUPER_ADMIN_SECRET // Sirf Super Admin ke liye
-    const DAILY_2FA = getDynamic2FACode() // Normal Admin ke liye
+    const SUPER_ADMIN_SECRET = process.env.MOSPI_SUPER_ADMIN_SECRET // Super Admin master key
+    const DAILY_2FA = getDynamic2FACode() // Dynamic rotating 2FA code
 
     // 🛡️ ROLE-BASED PRIVILEGE ENFORCEMENT
     if (isGod) {
-      // 1. SUPER ADMIN RULES
+      // 1. SUPER ADMIN RULES (Can create both 'admin' and 'officer')
       if (secretKey !== SUPER_ADMIN_SECRET) {
         return NextResponse.json(
           { error: 'GOD MODE FAILED: Invalid Super Admin Master Key.' }, 
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
         )
       }
     } else if (isAdmin) {
-      // 2. NORMAL ADMIN RULES
+      // 2. NORMAL ADMIN RULES (Can ONLY create 'officer')
       if (role !== 'officer') {
         return NextResponse.json(
           { error: 'SECURITY BREACH: Privilege Escalation Blocked. Admins can only provision Officers.' }, 
@@ -55,26 +55,33 @@ export async function POST(request: Request) {
       }
     }
 
-    // 🆕 Generate 8-Digit Monthly Code automatically if the new user is an 'admin'
+    // 🆕 Generate 8-Digit Monthly Code automatically if new user is an 'admin'
     const initialMonthlyCode = role === 'admin' 
       ? Math.floor(10000000 + Math.random() * 90000000).toString() 
       : null
 
-    // 🚀 Create user silently with role and monthly code
+    // 🚀 Create user in Supabase Auth with complete JWT metadata
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email: email,
       password: password,
       email_confirm: true, 
       user_metadata: { 
         role: role, 
-        monthly_admin_code: initialMonthlyCode 
+        department: department || 'MoSPI Department',
+        monthly_admin_code: initialMonthlyCode, // 8-digit code for Admin
+        cipher_code: initialMonthlyCode,        // Fallback key for compatibility
+        created_by: isGod ? 'super_admin' : 'admin'
       }
     })
 
     if (error) throw error
 
     return NextResponse.json(
-      { message: `Account (${role.toUpperCase()}) Provisioned & Secured Successfully!`, user: data.user },
+      { 
+        message: `Account (${role.toUpperCase()}) Provisioned Successfully!`, 
+        user: data.user,
+        monthlyCode: initialMonthlyCode // Super Admin screen par dikhane ke liye
+      },
       { status: 201 }
     )
 
