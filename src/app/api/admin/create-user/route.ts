@@ -1,91 +1,73 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { getDynamic2FACode } from '@/lib/auth-utils'
 
+// Supabase Admin Client using Service Role Key (Required to modify roles & bypass client limitations)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!, 
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  }
 )
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const cookieHeader = request.headers.get('cookie') || ''
-    
-    const isGod = cookieHeader.includes('paimana_godmode=true')
-    const isAdmin = cookieHeader.includes('paimana_session=true')
+    const body = await req.json()
+    const { email, password, role, monthlyCode, secretKey } = body
 
-    if (!isGod && !isAdmin) {
-      return NextResponse.json({ error: 'UNAUTHORIZED ACCESS' }, { status: 403 })
+    // 1️⃣ Verify Master Secret Key
+    const expectedSecretKey = process.env.GODMODE_SECRET_KEY || process.env.NEXT_PUBLIC_GODMODE_SECRET_KEY
+
+    if (!secretKey || secretKey !== expectedSecretKey) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Invalid Admin Secret Key.' },
+        { status: 401 }
+      )
     }
 
-    const body = await request.json()
-    const { email, password, role, department, secretKey } = body
-
-    if (!email || !password || !role || !secretKey) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!email || !password) {
+      return NextResponse.json(
+        { error: 'Email and password are required fields.' },
+        { status: 400 }
+      )
     }
 
-    // 🛡️ DUAL SECRETS
-    const SUPER_ADMIN_SECRET = process.env.MOSPI_SUPER_ADMIN_SECRET // Super Admin master key
-    const DAILY_2FA = getDynamic2FACode() // Dynamic rotating 2FA code
+    const targetRole = role || 'officer'
 
-    // 🛡️ ROLE-BASED PRIVILEGE ENFORCEMENT
-    if (isGod) {
-      // 1. SUPER ADMIN RULES (Can create both 'admin' and 'officer')
-      if (secretKey !== SUPER_ADMIN_SECRET) {
-        return NextResponse.json(
-          { error: 'GOD MODE FAILED: Invalid Super Admin Master Key.' }, 
-          { status: 403 }
-        )
-      }
-    } else if (isAdmin) {
-      // 2. NORMAL ADMIN RULES (Can ONLY create 'officer')
-      if (role !== 'officer') {
-        return NextResponse.json(
-          { error: 'SECURITY BREACH: Privilege Escalation Blocked. Admins can only provision Officers.' }, 
-          { status: 403 }
-        )
-      }
-
-      if (secretKey !== DAILY_2FA) {
-        return NextResponse.json(
-          { error: 'PROVISIONING FAILED: Invalid or Expired Daily 2FA Code.' }, 
-          { status: 403 }
-        )
-      }
+    // 2️⃣ Generate 8-Digit Cipher for Admin if not provided
+    let finalMonthlyCode = monthlyCode
+    if (targetRole === 'admin' && !finalMonthlyCode) {
+      finalMonthlyCode = Math.floor(10000000 + Math.random() * 90000000).toString()
     }
 
-    // 🆕 Generate 8-Digit Monthly Code automatically if new user is an 'admin'
-    const initialMonthlyCode = role === 'admin' 
-      ? Math.floor(10000000 + Math.random() * 90000000).toString() 
-      : null
-
-    // 🚀 Create user in Supabase Auth with complete JWT metadata
+    // 3️⃣ Create User in Supabase Auth with dynamic role metadata
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email: email,
-      password: password,
-      email_confirm: true, 
-      user_metadata: { 
-        role: role, 
-        department: department || 'MoSPI Department',
-        monthly_admin_code: initialMonthlyCode, // 8-digit code for Admin
-        cipher_code: initialMonthlyCode,        // Fallback key for compatibility
-        created_by: isGod ? 'super_admin' : 'admin'
-      }
+      email,
+      password,
+      email_confirm: true, // Auto confirms email for instant login
+      user_metadata: {
+        role: targetRole, // Sets 'admin', 'officer', or 'super_admin' dynamically
+        monthly_admin_code: targetRole === 'admin' ? finalMonthlyCode : null,
+      },
     })
 
-    if (error) throw error
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
 
+    return NextResponse.json({
+      success: true,
+      message: `Account successfully created as [${targetRole.toUpperCase()}]!`,
+      user: data.user,
+      monthlyCode: finalMonthlyCode,
+    })
+  } catch (err: any) {
     return NextResponse.json(
-      { 
-        message: `Account (${role.toUpperCase()}) Provisioned Successfully!`, 
-        user: data.user,
-        monthlyCode: initialMonthlyCode // Super Admin screen par dikhane ke liye
-      },
-      { status: 201 }
+      { error: err.message || 'Internal Server Error' },
+      { status: 500 }
     )
-
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
