@@ -114,14 +114,14 @@ export default function LoginPage() {
     }
   }
 
-  // 3️⃣ GOD MODE BYPASS (Super Admin 3-Factor Authentication)
+  // 3️⃣ GOD MODE BYPASS (Super Admin 3-Factor Authentication with Dynamic API)
   const handleGodModeLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
 
     try {
-      const res = await fetch('/api/verify-key', {
+      const res = await fetch('/api/admin/godmode-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -130,16 +130,15 @@ export default function LoginPage() {
           secretKey: secretKey,
         }),
       })
+
       const data = await res.json()
 
-      if (!res.ok) throw new Error(data.error)
-
-      if (data.role === 'super_admin') {
-        document.cookie = 'paimana_godmode=true; path=/; max-age=86400'
-        window.location.href = '/super-admin'
-      } else {
-        throw new Error('Key is valid but God Mode clearance is missing.')
+      if (!res.ok) {
+        throw new Error(data.error || 'God Mode authentication failed.')
       }
+
+      // Successful Auth -> Redirect to Super Admin Panel
+      window.location.href = '/super-admin'
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -430,7 +429,7 @@ export default function LoginPage() {
                       value={godEmail}
                       onChange={(e) => setGodEmail(e.target.value)}
                       className="w-full pl-7 pr-2 py-1.5 bg-slate-50 border border-slate-300 rounded-md text-xs text-slate-900 focus:outline-none focus:border-slate-900"
-                      placeholder="Root ID"
+                      placeholder="director@mospi.gov.in"
                     />
                   </div>
                 </div>
