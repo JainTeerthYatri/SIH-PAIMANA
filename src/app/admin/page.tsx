@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { getDynamic2FACode } from '@/lib/auth-utils'
 import {
   LogOut,
@@ -28,6 +29,7 @@ interface SupabaseUser {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [submitLoading, setSubmitLoading] = useState(false)
@@ -67,15 +69,16 @@ export default function AdminDashboard() {
   useEffect(() => {
     // Session Verification
     if (!document.cookie.includes('paimana_session=true') && !document.cookie.includes('paimana_godmode=true')) {
-      window.location.href = '/login'
+      router.push('/login')
       return
     }
     fetchSupabaseUsers()
-  }, [])
+  }, [router])
 
   const handleLogout = () => {
     document.cookie = 'paimana_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    window.location.href = '/login'
+    document.cookie = 'paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    router.push('/login')
   }
 
   // 🛡️ Provision New Officer Account
@@ -139,7 +142,7 @@ export default function AdminDashboard() {
               <Users size={16} /> Officers Console
             </a>
             <button
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => router.push('/dashboard')}
               className="w-full flex items-center gap-3 px-3.5 py-2.5 text-slate-400 hover:text-white rounded-xl transition-all text-left"
             >
               <FileSpreadsheet size={16} /> Main Dashboard
@@ -173,7 +176,7 @@ export default function AdminDashboard() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => router.push('/dashboard')}
               className="hidden sm:flex text-xs font-bold text-slate-600 hover:text-blue-600 transition-colors"
             >
               View Main Dashboard
