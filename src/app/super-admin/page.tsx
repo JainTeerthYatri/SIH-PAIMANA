@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ShieldAlert, Users, Activity, Key, LogOut, Trash2, ShieldCheck, Database, RefreshCcw, Plus, X, Lock } from 'lucide-react'
+import { 
+  ShieldAlert, Users, Activity, Key, LogOut, 
+  ShieldCheck, Database, RefreshCcw, Plus, X, Lock 
+} from 'lucide-react'
 
-// Supabase Auth User Interface
 interface Officer {
   id: string
   email: string
@@ -15,7 +17,6 @@ export default function SuperAdminPage() {
   const [loading, setLoading] = useState(true)
   const [officers, setOfficers] = useState<Officer[]>([])
   
-  // 🆕 Modal & Form State (With secretKey for dual-verification)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [newUser, setNewUser] = useState({ 
     email: '', 
@@ -26,7 +27,6 @@ export default function SuperAdminPage() {
   const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [modalMsg, setModalMsg] = useState('')
 
-  // 🔄 Fetch Real Users from API
   const fetchRealUsers = async () => {
     try {
       const res = await fetch('/api/admin/users')
@@ -41,24 +41,33 @@ export default function SuperAdminPage() {
 
   // 🛡️ God Mode Protection Check
   useEffect(() => {
-    if (!document.cookie.includes('paimana_godmode=true')) {
-      window.location.href = '/register'
+    const hasGodMode = document.cookie
+      .split(';')
+      .some(c => c.trim().startsWith('paimana_godmode=true'))
+
+    if (!hasGodMode) {
+      window.location.href = '/login'   // ← /register ki jagah /login
       return
     }
     fetchRealUsers()
   }, [])
 
   const handleLogout = () => {
+    // Cookie clear
     document.cookie = "paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-    window.location.href = '/register'
+    document.cookie = "paimana_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    window.location.href = '/login'     // ← /register ki jagah /login
   }
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never Logged In'
-    return new Date(dateString).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    return new Date(dateString).toLocaleString('en-IN', { 
+      timeZone: 'Asia/Kolkata', 
+      dateStyle: 'medium', 
+      timeStyle: 'short' 
+    })
   }
 
-  // 🚀 Handle Create User Form (With Security Catch)
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setModalStatus('loading')
@@ -76,12 +85,10 @@ export default function SuperAdminPage() {
       
       setModalStatus('success')
       setModalMsg(data.message)
-      fetchRealUsers() // Refresh table automatically
+      fetchRealUsers()
       
-      // Reset full form including secretKey
       setNewUser({ email: '', password: '', role: 'officer', secretKey: '' }) 
       
-      // Auto-close modal after 2 seconds
       setTimeout(() => {
         setIsModalOpen(false)
         setModalStatus('idle')
@@ -93,12 +100,18 @@ export default function SuperAdminPage() {
     }
   }
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Activity className="w-8 h-8 text-red-500 animate-spin" /></div>
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Activity className="w-8 h-8 text-red-500 animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-red-500/30 relative overflow-x-hidden">
       
-      {/* 🔴 TOP WARNING BAR */}
+      {/* TOP WARNING BAR */}
       <div className="bg-red-600 text-white text-xs py-1.5 px-6 flex justify-between items-center font-bold tracking-widest uppercase shadow-[0_0_15px_rgba(239,68,68,0.5)]">
         <div className="flex items-center gap-2 animate-pulse">
           <ShieldAlert className="w-4 h-4" />
@@ -107,7 +120,7 @@ export default function SuperAdminPage() {
         <span className="hidden sm:inline">MoSPI Central Command</span>
       </div>
 
-      {/* 🔵 NAVBAR */}
+      {/* NAVBAR */}
       <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex justify-between items-center">
           <div className="flex items-center gap-4">
@@ -119,7 +132,10 @@ export default function SuperAdminPage() {
               <p className="text-[10px] sm:text-xs font-bold text-red-400 uppercase tracking-widest">Live Database Sync</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all border border-slate-700 hover:border-red-500">
+          <button 
+            onClick={handleLogout} 
+            className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 text-white px-4 py-2 sm:px-5 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all border border-slate-700 hover:border-red-500"
+          >
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Terminate Session</span>
           </button>
@@ -128,7 +144,7 @@ export default function SuperAdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
         
-        {/* 📊 STATS CARDS */}
+        {/* STATS CARDS */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl">
             <div className="p-4 bg-blue-500/10 text-blue-500 rounded-xl"><Users className="w-8 h-8" /></div>
@@ -148,7 +164,9 @@ export default function SuperAdminPage() {
           </div>
           <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl flex items-center gap-4 shadow-xl relative overflow-hidden">
             <div className="absolute -right-4 -bottom-4 opacity-10 text-purple-500"><Database className="w-24 h-24" /></div>
-            <div className="p-4 bg-purple-500/10 text-purple-500 rounded-xl relative z-10"><RefreshCcw className="w-8 h-8 animate-spin-slow" /></div>
+            <div className="p-4 bg-purple-500/10 text-purple-500 rounded-xl relative z-10">
+              <RefreshCcw className="w-8 h-8 animate-spin-slow" />
+            </div>
             <div className="relative z-10">
               <p className="text-sm font-bold text-slate-500 uppercase">Supabase Connect</p>
               <h3 className="text-3xl font-black text-emerald-400">Live</h3>
@@ -156,7 +174,7 @@ export default function SuperAdminPage() {
           </div>
         </div>
 
-        {/* 📋 MAIN USERS TABLE */}
+        {/* USERS TABLE */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-4 sm:p-6 border-b border-slate-800 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
@@ -186,7 +204,9 @@ export default function SuperAdminPage() {
               <tbody className="divide-y divide-slate-800">
                 {officers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-10 text-center text-slate-500">Fetching network identities...</td>
+                    <td colSpan={4} className="px-6 py-10 text-center text-slate-500">
+                      Fetching network identities...
+                    </td>
                   </tr>
                 ) : (
                   officers.map((officer) => (
@@ -196,15 +216,25 @@ export default function SuperAdminPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {officer.user_metadata?.role === 'super_admin' ? (
-                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-red-500/10 px-2 py-1 rounded">Super Admin</span>
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-red-500/10 px-2 py-1 rounded">
+                            Super Admin
+                          </span>
                         ) : officer.user_metadata?.role === 'admin' ? (
-                          <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-emerald-500/10 px-2 py-1 rounded">Admin</span>
+                          <span className="text-emerald-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-emerald-500/10 px-2 py-1 rounded">
+                            Admin
+                          </span>
                         ) : (
-                          <span className="text-blue-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-blue-500/10 px-2 py-1 rounded">Officer</span>
+                          <span className="text-blue-400 font-bold uppercase tracking-wider text-[10px] sm:text-xs bg-blue-500/10 px-2 py-1 rounded">
+                            Officer
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-400">{formatDate(officer.created_at)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-500">{formatDate(officer.last_sign_in_at)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-400">
+                        {formatDate(officer.created_at)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-slate-500">
+                        {formatDate(officer.last_sign_in_at)}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -214,7 +244,7 @@ export default function SuperAdminPage() {
         </div>
       </main>
 
-      {/* 🔐 MODAL: PROVISION NEW USER */}
+      {/* MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
@@ -232,7 +262,6 @@ export default function SuperAdminPage() {
             <h2 className="text-xl font-bold text-white mb-2">Create New Account</h2>
             <p className="text-sm text-slate-400 mb-6">Provision access for a new MoSPI official.</p>
             
-            {/* Status Messages */}
             {modalStatus === 'error' && (
               <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg flex items-start gap-2">
                 <ShieldAlert className="w-5 h-5 shrink-0" />
@@ -246,13 +275,13 @@ export default function SuperAdminPage() {
               </div>
             )}
             
-            {/* Form */}
             <form onSubmit={handleCreateUser} className="space-y-4">
               <div>
                 <label className="block text-sm font-bold text-slate-300 mb-1">Official Email</label>
                 <input 
                   type="email" required 
-                  value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})}
+                  value={newUser.email} 
+                  onChange={e => setNewUser({...newUser, email: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-600" 
                   placeholder="name@mospi.gov.in"
                 />
@@ -262,7 +291,8 @@ export default function SuperAdminPage() {
                 <label className="block text-sm font-bold text-slate-300 mb-1">Temporary Password</label>
                 <input 
                   type="password" required minLength={6}
-                  value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})}
+                  value={newUser.password} 
+                  onChange={e => setNewUser({...newUser, password: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-slate-600" 
                   placeholder="••••••••"
                 />
@@ -271,7 +301,8 @@ export default function SuperAdminPage() {
               <div>
                 <label className="block text-sm font-bold text-slate-300 mb-1">Clearance Role</label>
                 <select 
-                  value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}
+                  value={newUser.role} 
+                  onChange={e => setNewUser({...newUser, role: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none appearance-none"
                 >
                   <option value="officer">Standard Officer (View Only)</option>
@@ -279,25 +310,24 @@ export default function SuperAdminPage() {
                 </select>
               </div>
 
-              {/* 🔴 THE SECURITY CATCH: SECONDARY AUTHORIZATION */}
               <div className="pt-2">
                 <label className="block text-sm font-bold text-red-400 mb-1 flex items-center gap-1.5">
                   <Lock className="w-4 h-4" />
                   Admin Creation Key (Mandatory)
                 </label>
-                <div className="relative">
-                  <input 
-                    type="password" required 
-                    value={newUser.secretKey} onChange={e => setNewUser({...newUser, secretKey: e.target.value})}
-                    className="w-full bg-slate-950 border border-red-500/50 rounded-xl px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all font-mono tracking-widest placeholder-slate-600" 
-                    placeholder="Enter Secondary Authorization"
-                  />
-                </div>
+                <input 
+                  type="password" required 
+                  value={newUser.secretKey} 
+                  onChange={e => setNewUser({...newUser, secretKey: e.target.value})}
+                  className="w-full bg-slate-950 border border-red-500/50 rounded-xl px-4 py-2.5 text-white focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all font-mono tracking-widest placeholder-slate-600" 
+                  placeholder="Enter Secondary Authorization"
+                />
                 <p className="text-[10px] text-slate-500 mt-1">*Required to verify your intent to create this user.</p>
               </div>
 
               <button 
-                type="submit" disabled={modalStatus === 'loading' || modalStatus === 'success'}
+                type="submit" 
+                disabled={modalStatus === 'loading' || modalStatus === 'success'}
                 className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {modalStatus === 'loading' ? (

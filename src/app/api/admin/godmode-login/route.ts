@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
       // 🍪 Set GodMode session cookie
       response.cookies.set('paimana_godmode', 'true', {
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
