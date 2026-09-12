@@ -457,7 +457,7 @@ export const Navbar: React.FC = () => {
             style={{ alignItems: 'center' }}
           >
             <button
-              onClick={() => router.push('/workspace/login')}
+              onClick={() => router.push('/login')}
               className="btn-primary"
               style={{
                 padding: '0.65rem 1.35rem',
@@ -536,7 +536,7 @@ export const Navbar: React.FC = () => {
               <button
                 onClick={() => {
                   setMobileOpen(false);
-                  router.push('/workspace/login');
+                  router.push('/login');
                 }}
                 className="btn-primary"
                 style={{
@@ -3219,7 +3219,7 @@ export const CTASection: React.FC = () => {
           }}
         >
           <button
-            onClick={() => router.push('/workspace/login')}
+            onClick={() => router.push('/login')}
             className="btn-primary"
             style={{
               padding: '0.95rem 2.4rem',
