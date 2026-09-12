@@ -48,7 +48,7 @@ export default function SuperAdminPage() {
 
   useEffect(() => {
     if (!document.cookie.includes('paimana_godmode=true')) {
-      window.location.href = '/register'
+      window.location.href = '/login'
       return
     }
     fetchRealUsers()
@@ -56,7 +56,7 @@ export default function SuperAdminPage() {
 
   const handleLogout = () => {
     document.cookie = "paimana_godmode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
-    window.location.href = '/register'
+    window.location.href = '/login'
   }
 
   const formatDate = (dateString: string | null) => {
