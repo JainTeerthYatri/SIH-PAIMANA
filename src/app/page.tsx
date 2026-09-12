@@ -857,7 +857,7 @@ export const Hero: React.FC = () => {
             }}
           >
             <button
-              onClick={() => router.push('/workspace/login')}
+              onClick={() => router.push('/login')}
               style={{
                 backgroundColor: '#F59A00',
                 color: '#FFFFFF',
