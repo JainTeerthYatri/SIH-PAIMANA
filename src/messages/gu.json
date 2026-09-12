@@ -1,0 +1,58 @@
+{
+  "Common": {
+    "appName": "PAIMANA",
+    "tagline": "AI-Powered Early Warning System",
+    "ministry": "Ministry of Statistics & Programme Implementation",
+    "login": "Workspace Login",
+    "logout": "Sign Out",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "search": "Search",
+    "actions": "Actions"
+  },
+  "Nav": {
+    "home": "Home",
+    "about": "About",
+    "features": "Features",
+    "insights": "Insights",
+    "resources": "Resources",
+    "contact": "Contact"
+  },
+  "Sidebar": {
+    "overview": "Overview",
+    "dashboard": "Executive Dashboard",
+    "projects": "Projects Registry",
+    "riskAi": "Risk & Predictive AI",
+    "compositeRisk": "Composite Risk Score",
+    "chatbot": "PAIMANA AI Assistant",
+    "benchmarking": "Model Benchmarking",
+    "intelligence": "Intelligence & Alerts",
+    "analytics": "Sector & State Analytics",
+    "alertCenter": "Early Warning Center",
+    "dataReports": "Data & Reports",
+    "cufUpload": "CUF Data Management",
+    "reports": "Executive Reports",
+    "system": "System",
+    "admin": "User & System Config"
+  },
+  "Login": {
+    "officer": "Officer",
+    "admin": "Admin",
+    "godMode": "God Mode",
+    "email": "Official Email Address",
+    "password": "Password",
+    "dailyCode": "Daily Security Clearance Code",
+    "monthlyCode": "8-Digit Monthly Master Cipher",
+    "secretKey": "Authorization Secret Key",
+    "authenticate": "Authenticate Officer",
+    "authorizeAdmin": "Authorize Admin Session",
+    "verifyGod": "Verify God Clearance"
+  },
+  "Dashboard": {
+    "welcome": "Welcome to PAIMANA",
+    "totalProjects": "Total Projects",
+    "highRisk": "High Risk",
+    "onTrack": "On Track"
+  }
+}

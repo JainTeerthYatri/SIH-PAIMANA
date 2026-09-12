@@ -1,60 +1,88 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import createMiddleware from 'next-intl/middleware'
+import { NextRequest, NextResponse } from 'next/server'
+import { routing } from './i18n/routing'
+
+const intlMiddleware = createMiddleware(routing)
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ============================================
+  // 1. Pehle next-intl locale handling
+  // ============================================
+  const response = intlMiddleware(request)
+
+  // Locale hata ke clean path nikaalo (auth ke liye)
+  // Example: /hi/dashboard → /dashboard
+  const pathWithoutLocale = pathname.replace(
+    /^\/(en|hi|bn|te|mr|ta|gu|ur|kn|or|ml|pa|as)(?=\/|$)/,
+    ''
+  ) || '/'
+
   const godmode = request.cookies.get('paimana_godmode')?.value === 'true'
   const session = request.cookies.get('paimana_session')?.value === 'true'
 
-  // 1. /register → /login
-  if (pathname.startsWith('/register')) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  // ============================================
+  // 2. /register → /login (locale ke saath)
+  // ============================================
+  if (pathWithoutLocale.startsWith('/register')) {
+    const locale = pathname.split('/')[1] || 'en'
+    return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
   }
 
-  // 2. Super Admin protection
-  if (pathname.startsWith('/super-admin')) {
+  // ============================================
+  // 3. Super Admin protection
+  // ============================================
+  if (pathWithoutLocale.startsWith('/super-admin')) {
     if (!godmode) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      const locale = pathname.split('/')[1] || 'en'
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
     }
-    return NextResponse.next()
+    return response
   }
 
-  // 3. Admin panel protection
-  if (pathname.startsWith('/admin')) {
+  // ============================================
+  // 4. Admin panel protection
+  // ============================================
+  if (pathWithoutLocale.startsWith('/admin')) {
     if (!godmode && !session) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      const locale = pathname.split('/')[1] || 'en'
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
     }
-    return NextResponse.next()
+    return response
   }
 
-  // 4. Dashboard protection
-  if (pathname.startsWith('/dashboard')) {
+  // ============================================
+  // 5. Dashboard protection
+  // ============================================
+  if (pathWithoutLocale.startsWith('/dashboard')) {
     if (!session && !godmode) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      const locale = pathname.split('/')[1] || 'en'
+      return NextResponse.redirect(new URL(`/${locale}/login`, request.url))
     }
-    return NextResponse.next()
+    return response
   }
 
-  // 5. Already logged-in user /login pe aaye toh redirect
-  if (pathname === '/login') {
+  // ============================================
+  // 6. Already logged-in → sahi jagah bhejo
+  // ============================================
+  if (pathWithoutLocale === '/login') {
+    const locale = pathname.split('/')[1] || 'en'
+
     if (godmode) {
-      return NextResponse.redirect(new URL('/super-admin', request.url))
+      return NextResponse.redirect(new URL(`/${locale}/super-admin`, request.url))
     }
     if (session) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return NextResponse.redirect(new URL(`/${locale}/dashboard`, request.url))
     }
   }
 
-  return NextResponse.next()
+  return response
 }
 
 export const config = {
   matcher: [
-    '/register/:path*',
-    '/super-admin/:path*',
-    '/admin/:path*',
-    '/dashboard/:path*',
-    '/login',
+    // Saari routes except static files + api
+    '/((?!api|_next|_vercel|.*\\..*).*)',
   ],
 }
