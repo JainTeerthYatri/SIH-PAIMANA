@@ -36,23 +36,38 @@
     "system": "System",
     "admin": "User & System Config"
   },
-  "Login": {
-    "officer": "Officer",
-    "admin": "Admin",
-    "godMode": "God Mode",
-    "email": "Official Email Address",
-    "password": "Password",
-    "dailyCode": "Daily Security Clearance Code",
-    "monthlyCode": "8-Digit Monthly Master Cipher",
-    "secretKey": "Authorization Secret Key",
-    "authenticate": "Authenticate Officer",
-    "authorizeAdmin": "Authorize Admin Session",
-    "verifyGod": "Verify God Clearance"
-  },
   "Dashboard": {
     "welcome": "Welcome to PAIMANA",
     "totalProjects": "Total Projects",
     "highRisk": "High Risk",
     "onTrack": "On Track"
-  }
+  },
+  "Login": {
+  "officer": "Officer",
+  "admin": "Admin",
+  "godMode": "God Mode",
+  "email": "Official Email Address",
+  "password": "Password",
+  "dailyCode": "Daily Security Clearance Code",
+  "monthlyCode": "8-Digit Monthly Master Cipher",
+  "secretKey": "Authorization Secret Key",
+  "authenticate": "Authenticate Officer",
+  "authorizeAdmin": "Authorize Admin Session",
+  "verifyGod": "Verify God Clearance",
+  "gateway": "PAIMANA Gateway",
+  "adminGateway": "Admin Gateway",
+  "superAdminPortal": "Super Admin Portal",
+  "officerCredentials": "Officer Credentials",
+  "restrictedAccess": "Restricted Access Only",
+  "headline": "Predict infrastructure project risks before they impact cost & schedule.",
+  "description": "AI-powered intelligence platform transforming Common Upload Form (CUF) infrastructure data into early risk intervention indicators.",
+  "feat1": "Explainable SHAP Cost Driver Factorization",
+  "feat2": "Statistical & Gradient Boosted Benchmarking",
+  "feat3": "Automated MoSPI CUF CSV Record Parser",
+  "feat4": "Role-Based Executive Risk Dashboards",
+  "twoFaNote": "*Mandatory 6-Hour Dynamic 2FA for Officers.",
+  "monthlyNote": "*Issued monthly by Super Admin.",
+  "trouble": "Having trouble logging in?",
+  "contactAdmin": "Contact Administrator"
+}
 }
