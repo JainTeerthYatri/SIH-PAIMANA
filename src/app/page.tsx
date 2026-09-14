@@ -1,4 +1,6 @@
 'use client';
+import { useLanguage } from '@/context/LanguageContext'
+import LanguageSwitcher from '@/context/LanguageSwitcher'
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
@@ -325,6 +327,7 @@ interface NavLink {
 export const Navbar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useLanguage()
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('Home');
@@ -354,14 +357,14 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navLinks: NavLink[] = [
-    { name: 'Home', href: '#home' },
-    { name: 'About', href: '#about' },
-    { name: 'Features', href: '#features' },
-    { name: 'Insights', href: '#insights' },
-    { name: 'Resources', href: '#resources' },
-    { name: 'Contact', href: '#contact' },
-  ];
+  const navLinks = [
+  { key: 'home', href: '#home' },
+  { key: 'about', href: '#about' },
+  { key: 'features', href: '#features' },
+  { key: 'insights', href: '#insights' },
+  { key: 'resources', href: '#resources' },
+  { key: 'contact', href: '#contact' },
+ ];
 
   const handleNavClick = (e: React.MouseEvent, link: NavLink) => {
     e.preventDefault();
