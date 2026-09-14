@@ -3,6 +3,8 @@
 import React, { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getDynamic2FACode } from '@/lib/auth-utils'
+import { useLanguage } from '@/context/LanguageContext'
+import LanguageSwitcher from '@/context/LanguageSwitcher'
 import {
   Lock,
   Mail,
@@ -17,6 +19,8 @@ import {
 } from 'lucide-react'
 
 export default function LoginPage() {
+  const { t } = useLanguage()
+
   const [loginType, setLoginType] = useState<'standard' | 'admin' | 'godmode'>('standard')
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
@@ -37,7 +41,7 @@ export default function LoginPage() {
   const [godPassword, setGodPassword] = useState('')
   const [secretKey, setSecretKey] = useState('') // Master Key
 
-  // 1️⃣ STANDARD OFFICER LOGIN (Strict 6-Hour Dynamic 2FA Enforced)
+  // 1️⃣ STANDARD OFFICER LOGIN
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -78,7 +82,7 @@ export default function LoginPage() {
     }
   }
 
-  // 2️⃣ ADMIN LOGIN (Password + 8-Digit Monthly Master Cipher)
+  // 2️⃣ ADMIN LOGIN
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -114,7 +118,7 @@ export default function LoginPage() {
     }
   }
 
-  // 3️⃣ GOD MODE BYPASS (Super Admin 3-Factor Authentication with Dynamic API)
+  // 3️⃣ GOD MODE LOGIN
   const handleGodModeLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -137,7 +141,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'God Mode authentication failed.')
       }
 
-      // Successful Auth -> Redirect to Super Admin Panel
       window.location.href = '/super-admin'
     } catch (err: any) {
       setError(err.message)
@@ -148,34 +151,34 @@ export default function LoginPage() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#FFF9EF] flex items-center justify-center p-3 font-sans">
-      {/* Main Compact Card Container */}
+      {/* Language Switcher - top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
+
       <div className="flex flex-col lg:flex-row w-[920px] max-w-full max-h-[92vh] rounded-2xl overflow-hidden shadow-xl border border-[#EAE2D5] bg-white">
         
-        {/* LEFT COLUMN: Government / PAIMANA Branding */}
+        {/* LEFT COLUMN */}
         <div className="lg:w-[50%] bg-[#0B192C] bg-[radial-gradient(circle_at_20%_20%,rgba(14,116,144,0.15)_0%,transparent_50%),radial-gradient(circle_at_80%_80%,rgba(245,154,0,0.08)_0%,transparent_50%)] p-5 md:p-6 flex flex-col justify-between text-white relative overflow-hidden">
           <div>
-            {/* Header / Logo */}
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#EA580C] to-[#F59A00] flex items-center justify-center text-white font-black text-base shadow-md">
                 P
               </div>
               <div>
-                <span className="text-base font-black tracking-wider text-white">PAIMANA</span>
+                <span className="text-base font-black tracking-wider text-white">{t('Common.appName')}</span>
                 <span className="block text-[9px] font-bold text-slate-400 tracking-widest uppercase">MoSPI Analytics</span>
               </div>
             </div>
 
-            {/* Headline */}
             <h1 className="text-base md:text-lg font-extrabold leading-snug mb-2 tracking-tight">
               Predict infrastructure project risks <span className="text-[#F59A00]">before</span> they impact cost & schedule.
             </h1>
 
-            {/* Description */}
             <p className="text-slate-400 text-[11px] leading-relaxed mb-3">
               AI-powered intelligence platform transforming Common Upload Form (CUF) infrastructure data into early risk intervention indicators.
             </p>
 
-            {/* Features */}
             <div className="space-y-1.5 mb-2">
               {[
                 'Explainable SHAP Cost Driver Factorization',
@@ -193,7 +196,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Compact Bridge SVG Graphic */}
           <div className="w-full mt-auto relative h-20 overflow-hidden">
             <svg viewBox="0 0 600 200" className="w-full h-full block">
               <defs>
@@ -224,10 +226,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Mode Selector & Form */}
+        {/* RIGHT COLUMN */}
         <div className="lg:w-[50%] bg-white p-5 md:p-6 flex flex-col justify-center">
           
-          {/* Top Mode Selector Tabs */}
+          {/* Mode Selector Tabs */}
           <div className="flex bg-slate-100 p-1 rounded-xl mb-4 border border-slate-200">
             <button
               type="button"
@@ -236,7 +238,7 @@ export default function LoginPage() {
                 loginType === 'standard' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Officer
+              {t('Login.officer')}
             </button>
             <button
               type="button"
@@ -245,7 +247,7 @@ export default function LoginPage() {
                 loginType === 'admin' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Admin
+              {t('Login.admin')}
             </button>
             <button
               type="button"
@@ -254,7 +256,7 @@ export default function LoginPage() {
                 loginType === 'godmode' ? 'bg-slate-900 text-red-400 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <ShieldAlert className="w-3 h-3" /> God Mode
+              <ShieldAlert className="w-3 h-3" /> {t('Login.godMode')}
             </button>
           </div>
 
@@ -270,12 +272,12 @@ export default function LoginPage() {
                 {loginType === 'godmode' ? 'Super Admin Portal' : loginType === 'admin' ? 'Admin Gateway' : 'PAIMANA Gateway'}
               </h2>
               <p className="text-[11px] font-medium text-slate-500">
-                {loginType === 'godmode' ? 'Restricted Access Only' : loginType === 'admin' ? 'Enter 8-Digit Monthly Cipher' : 'Officer Credentials'}
+                {loginType === 'godmode' ? 'Restricted Access Only' : loginType === 'admin' ? t('Login.monthlyCode') : 'Officer Credentials'}
               </p>
             </div>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="mb-3 p-2.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-[11px] font-medium flex items-start gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -283,11 +285,11 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* 🔵 1. OFFICER LOGIN FORM */}
+          {/* OFFICER FORM */}
           {loginType === 'standard' && (
             <form onSubmit={handleStandardLogin} className="space-y-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Official Email Address *</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t('Login.email')} *</label>
                 <div className="relative">
                   <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -302,7 +304,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Password *</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t('Login.password')} *</label>
                 <div className="relative">
                   <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -324,7 +326,7 @@ export default function LoginPage() {
               </div>
 
               <div className="pt-1.5 border-t border-slate-100">
-                <label className="block text-[11px] font-bold text-emerald-600 mb-1">Daily Security Clearance Code *</label>
+                <label className="block text-[11px] font-bold text-emerald-600 mb-1">{t('Login.dailyCode')} *</label>
                 <div className="relative">
                   <KeyRound className="w-3.5 h-3.5 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -343,16 +345,16 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full py-2.5 px-3 mt-1 bg-gradient-to-r from-[#F59A00] to-[#EA580C] text-white rounded-lg text-xs font-bold shadow-sm hover:opacity-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span>Authenticate Officer</span> <ArrowRight size={14} /></>}
+                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span>{t('Login.authenticate')}</span> <ArrowRight size={14} /></>}
               </button>
             </form>
           )}
 
-          {/* 🟢 2. ADMIN LOGIN FORM */}
+          {/* ADMIN FORM */}
           {loginType === 'admin' && (
             <form onSubmit={handleAdminLogin} className="space-y-2.5">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Admin Email Address *</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t('Login.email')} *</label>
                 <div className="relative">
                   <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -367,7 +369,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Password *</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">{t('Login.password')} *</label>
                 <div className="relative">
                   <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -389,7 +391,7 @@ export default function LoginPage() {
               </div>
 
               <div className="pt-1.5 border-t border-slate-100">
-                <label className="block text-[11px] font-bold text-emerald-600 mb-1">8-Digit Monthly Master Cipher *</label>
+                <label className="block text-[11px] font-bold text-emerald-600 mb-1">{t('Login.monthlyCode')} *</label>
                 <div className="relative">
                   <KeyRound className="w-3.5 h-3.5 text-emerald-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -410,17 +412,17 @@ export default function LoginPage() {
                 disabled={loading}
                 className="w-full py-2.5 px-3 mt-1 bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-sm hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
-                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span>Authorize Admin Session</span> <ArrowRight size={14} /></>}
+                {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span>{t('Login.authorizeAdmin')}</span> <ArrowRight size={14} /></>}
               </button>
             </form>
           )}
 
-          {/* 🔴 3. GOD MODE LOGIN FORM */}
+          {/* GOD MODE FORM */}
           {loginType === 'godmode' && (
             <form onSubmit={handleGodModeLogin} className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-800 mb-0.5">Root Email *</label>
+                  <label className="block text-[10px] font-bold text-slate-800 mb-0.5">{t('Login.email')} *</label>
                   <div className="relative">
                     <Mail className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
@@ -434,7 +436,7 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-800 mb-0.5">Root Password *</label>
+                  <label className="block text-[10px] font-bold text-slate-800 mb-0.5">{t('Login.password')} *</label>
                   <div className="relative">
                     <Lock className="w-3 h-3 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
@@ -450,7 +452,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-800 mb-1">Authorization Secret Key *</label>
+                <label className="block text-[11px] font-bold text-slate-800 mb-1">{t('Login.secretKey')} *</label>
                 <div className="relative">
                   <KeyRound className="w-3.5 h-3.5 text-red-500 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -469,12 +471,11 @@ export default function LoginPage() {
                 disabled={loading || !secretKey || !godEmail || !godPassword}
                 className="w-full py-2.5 px-3 mt-1 bg-slate-900 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold shadow-sm hover:bg-black transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
-                {loading ? <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : <><span>Verify God Clearance</span> <ShieldAlert size={14} /></>}
+                {loading ? <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : <><span>{t('Login.verifyGod')}</span> <ShieldAlert size={14} /></>}
               </button>
             </form>
           )}
 
-          {/* Contact Admin Footer */}
           <div className="text-center mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
             Having trouble logging in?{' '}
             <span
