@@ -4,11 +4,12 @@ import React, { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useLanguage } from '@/context/LanguageContext'
+import LanguageSwitcher from '@/context/LanguageSwitcher'
 import { 
   LayoutDashboard, 
   FolderKanban, 
   ShieldAlert, 
-  TrendingUp, 
   BarChart3, 
   Bot, 
   Cpu, 
@@ -30,10 +31,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarProps) {
   const pathname = usePathname()
+  const { t } = useLanguage()
   const [activeAlertCount, setActiveAlertCount] = useState<number>(0)
   const sidebarRef = useRef<HTMLElement>(null)
 
-  // 🔄 Real-time Active Warnings Count Fetch
+  // Real-time Active Warnings Count
   useEffect(() => {
     async function fetchAlertCount() {
       try {
@@ -64,7 +66,6 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
     }
   }, [])
 
-  // ⌨️ Mouse Hover Keyboard Arrow Key Scrolling Listener
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (!sidebarRef.current) return
     if (e.key === 'ArrowDown') {
@@ -82,43 +83,43 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
 
   const navGroups = [
     {
-      title: 'OVERVIEW',
+      title: t('Sidebar.overview'),
       items: [
-        { path: '/dashboard', label: 'Executive Dashboard', icon: LayoutDashboard },
-        { path: '/dashboard/projects', label: 'Projects Registry', icon: FolderKanban }
+        { path: '/dashboard', label: t('Sidebar.dashboard'), icon: LayoutDashboard },
+        { path: '/dashboard/projects', label: t('Sidebar.projects'), icon: FolderKanban }
       ]
     },
     {
-      title: 'RISK & PREDICTIVE AI',
+      title: t('Sidebar.riskAi'),
       items: [
-        { path: '/dashboard/composite-risk', label: 'Composite Risk Score', icon: ShieldAlert },
-        { path: '/dashboard/chatbot', label: 'PAIMANA AI Assistant', icon: Bot },
-        { path: '/dashboard/benchmarking', label: 'Model Benchmarking', icon: Cpu }
+        { path: '/dashboard/composite-risk', label: t('Sidebar.compositeRisk'), icon: ShieldAlert },
+        { path: '/dashboard/chatbot', label: t('Sidebar.chatbot'), icon: Bot },
+        { path: '/dashboard/benchmarking', label: t('Sidebar.benchmarking'), icon: Cpu }
       ]
     },
     {
-      title: 'INTELLIGENCE & ALERTS',
+      title: t('Sidebar.intelligence'),
       items: [
-        { path: '/dashboard/ai-analytics', label: 'Sector & State Analytics', icon: BarChart3 },
+        { path: '/dashboard/ai-analytics', label: t('Sidebar.analytics'), icon: BarChart3 },
         { 
           path: '/dashboard/alert-center', 
-          label: 'Early Warning Center', 
+          label: t('Sidebar.alertCenter'), 
           icon: Bell, 
           badge: activeAlertCount > 0 ? String(activeAlertCount) : undefined 
         }
       ]
     },
     {
-      title: 'DATA & REPORTS',
+      title: t('Sidebar.dataReports'),
       items: [
-        { path: '/dashboard/cuf-upload', label: 'CUF Data Management', icon: UploadCloud },
-        { path: '/dashboard/reports', label: 'Executive Reports', icon: FileSpreadsheet }
+        { path: '/dashboard/cuf-upload', label: t('Sidebar.cufUpload'), icon: UploadCloud },
+        { path: '/dashboard/reports', label: t('Sidebar.reports'), icon: FileSpreadsheet }
       ]
     },
     {
-      title: 'SYSTEM',
+      title: t('Sidebar.system'),
       items: [
-        { path: '/admin', label: 'User & System Config', icon: Users }
+        { path: '/admin', label: t('Sidebar.admin'), icon: Users }
       ]
     }
   ]
@@ -139,6 +140,7 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         isOpen ? 'w-[265px]' : 'w-20'
       }`}
     >
+      {/* Header */}
       <div className={`p-4 flex items-center border-b border-white/10 ${isOpen ? 'justify-between' : 'justify-center'}`}>
         {isOpen ? (
           <div className="flex items-center gap-3">
@@ -146,8 +148,12 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
               <Landmark className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight text-white leading-none">PAIMANA</h1>
-              <p className="text-[10px] font-bold text-[#F59A00] uppercase tracking-widest mt-1">MoSPI Portal</p>
+              <h1 className="text-xl font-extrabold tracking-tight text-white leading-none">
+                {t('Common.appName')}
+              </h1>
+              <p className="text-[10px] font-bold text-[#F59A00] uppercase tracking-widest mt-1">
+                MoSPI Portal
+              </p>
             </div>
           </div>
         ) : (
@@ -165,6 +171,7 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         </button>
       </div>
 
+      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-4">
         {navGroups.map((group, idx) => (
           <div key={idx}>
@@ -209,7 +216,15 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
         ))}
       </nav>
 
+      {/* Footer */}
       <div className="p-3 border-t border-white/10 space-y-2">
+        {/* Language Switcher */}
+        {isOpen && (
+          <div className="px-1">
+            <LanguageSwitcher />
+          </div>
+        )}
+
         {isOpen && (
           <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-[11px] text-white/70">
             <div className="font-bold text-[#F59A00] mb-0.5">MoSPI CUF Platform</div>
@@ -223,10 +238,10 @@ export default function Sidebar({ isOpen, setIsOpen, onCloseMobile }: SidebarPro
           className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all font-semibold text-sm cursor-pointer ${
             !isOpen ? 'justify-center' : ''
           }`}
-          title={!isOpen ? "Sign Out" : undefined}
+          title={!isOpen ? t('Common.logout') : undefined}
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          {isOpen && <span>Sign Out</span>}
+          {isOpen && <span>{t('Common.logout')}</span>}
         </button>
       </div>
     </aside>
