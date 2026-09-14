@@ -26,22 +26,18 @@ export default function LoginPage() {
   const [error, setError] = useState<string>('')
   const [showPassword, setShowPassword] = useState<boolean>(false)
 
-  // Standard Form States (Officer)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [twoFactor, setTwoFactor] = useState('') // Daily 6-digit Code
+  const [twoFactor, setTwoFactor] = useState('')
 
-  // Admin Form States (Admin - Password + 8-Digit Monthly Code)
   const [adminEmail, setAdminEmail] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
-  const [monthlyCode, setMonthlyCode] = useState('') // 8-Digit Cipher
+  const [monthlyCode, setMonthlyCode] = useState('')
 
-  // God Mode Form States (Super Admin - 3 Factor Auth)
   const [godEmail, setGodEmail] = useState('')
   const [godPassword, setGodPassword] = useState('')
-  const [secretKey, setSecretKey] = useState('') // Master Key
+  const [secretKey, setSecretKey] = useState('')
 
-  // 1️⃣ STANDARD OFFICER LOGIN
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -82,7 +78,6 @@ export default function LoginPage() {
     }
   }
 
-  // 2️⃣ ADMIN LOGIN
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -118,7 +113,6 @@ export default function LoginPage() {
     }
   }
 
-  // 3️⃣ GOD MODE LOGIN
   const handleGodModeLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -151,7 +145,6 @@ export default function LoginPage() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#FFF9EF] flex items-center justify-center p-3 font-sans">
-      {/* Language Switcher - top right */}
       <div className="fixed top-4 right-4 z-50">
         <LanguageSwitcher />
       </div>
@@ -172,19 +165,19 @@ export default function LoginPage() {
             </div>
 
             <h1 className="text-base md:text-lg font-extrabold leading-snug mb-2 tracking-tight">
-              Predict infrastructure project risks <span className="text-[#F59A00]">before</span> they impact cost & schedule.
+              {t('Login.headline')}
             </h1>
 
             <p className="text-slate-400 text-[11px] leading-relaxed mb-3">
-              AI-powered intelligence platform transforming Common Upload Form (CUF) infrastructure data into early risk intervention indicators.
+              {t('Login.description')}
             </p>
 
             <div className="space-y-1.5 mb-2">
               {[
-                'Explainable SHAP Cost Driver Factorization',
-                'Statistical & Gradient Boosted Benchmarking',
-                'Automated MoSPI CUF CSV Record Parser',
-                'Role-Based Executive Risk Dashboards',
+                t('Login.feat1'),
+                t('Login.feat2'),
+                t('Login.feat3'),
+                t('Login.feat4'),
               ].map((feat, i) => (
                 <div key={i} className="flex items-center gap-2 text-[11px] text-slate-200 font-medium">
                   <div className="w-4 h-4 rounded-full bg-[#F59A00]/15 flex items-center justify-center shrink-0">
@@ -229,7 +222,6 @@ export default function LoginPage() {
         {/* RIGHT COLUMN */}
         <div className="lg:w-[50%] bg-white p-5 md:p-6 flex flex-col justify-center">
           
-          {/* Mode Selector Tabs */}
           <div className="flex bg-slate-100 p-1 rounded-xl mb-4 border border-slate-200">
             <button
               type="button"
@@ -260,7 +252,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Form Header */}
           <div className="mb-4 flex items-center gap-2.5">
             <div className={`p-2 rounded-xl shadow-sm ${
               loginType === 'godmode' ? 'bg-slate-900 text-red-400' : loginType === 'admin' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'
@@ -269,15 +260,22 @@ export default function LoginPage() {
             </div>
             <div>
               <h2 className="text-base font-extrabold text-slate-900 tracking-tight leading-tight">
-                {loginType === 'godmode' ? 'Super Admin Portal' : loginType === 'admin' ? 'Admin Gateway' : 'PAIMANA Gateway'}
+                {loginType === 'godmode'
+                  ? t('Login.superAdminPortal')
+                  : loginType === 'admin'
+                  ? t('Login.adminGateway')
+                  : t('Login.gateway')}
               </h2>
               <p className="text-[11px] font-medium text-slate-500">
-                {loginType === 'godmode' ? 'Restricted Access Only' : loginType === 'admin' ? t('Login.monthlyCode') : 'Officer Credentials'}
+                {loginType === 'godmode'
+                  ? t('Login.restrictedAccess')
+                  : loginType === 'admin'
+                  ? t('Login.monthlyCode')
+                  : t('Login.officerCredentials')}
               </p>
             </div>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mb-3 p-2.5 bg-red-50 border border-red-200 text-red-600 rounded-lg text-[11px] font-medium flex items-start gap-1.5">
               <ShieldAlert className="w-3.5 h-3.5 shrink-0 mt-0.5" />
@@ -285,7 +283,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* OFFICER FORM */}
           {loginType === 'standard' && (
             <form onSubmit={handleStandardLogin} className="space-y-2.5">
               <div>
@@ -337,7 +334,7 @@ export default function LoginPage() {
                     placeholder="Enter 6-Digit Code"
                   />
                 </div>
-                <p className="text-[9px] font-medium text-slate-400 mt-0.5">*Mandatory 6-Hour Dynamic 2FA for Officers.</p>
+                <p className="text-[9px] font-medium text-slate-400 mt-0.5">{t('Login.twoFaNote')}</p>
               </div>
 
               <button
@@ -350,7 +347,6 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ADMIN FORM */}
           {loginType === 'admin' && (
             <form onSubmit={handleAdminLogin} className="space-y-2.5">
               <div>
@@ -404,7 +400,7 @@ export default function LoginPage() {
                     placeholder="--------"
                   />
                 </div>
-                <p className="text-[9px] font-medium text-slate-400 mt-0.5">*Issued monthly by Super Admin.</p>
+                <p className="text-[9px] font-medium text-slate-400 mt-0.5">{t('Login.monthlyNote')}</p>
               </div>
 
               <button
@@ -417,7 +413,6 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* GOD MODE FORM */}
           {loginType === 'godmode' && (
             <form onSubmit={handleGodModeLogin} className="space-y-2.5">
               <div className="grid grid-cols-2 gap-2">
@@ -477,12 +472,12 @@ export default function LoginPage() {
           )}
 
           <div className="text-center mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
-            Having trouble logging in?{' '}
+            {t('Login.trouble')}{' '}
             <span
               onClick={() => alert('Please contact MoSPI System Administrator for access & credentials.')}
               className="text-slate-900 font-bold cursor-pointer hover:underline"
             >
-              Contact Administrator
+              {t('Login.contactAdmin')}
             </span>
           </div>
 
