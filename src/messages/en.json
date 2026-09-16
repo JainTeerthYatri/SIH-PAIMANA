@@ -72,6 +72,9 @@
   },
   "Home": {
     "ctaTitle1": "Ready to Move From",
+    "secure": "Secure",
+"dataDriven": "Data-Driven",
+"builtForBharat": "Built for Bharat",
     "ctaTitle2": "Monitoring to Prediction?",
     "ctaDesc": "Give policymakers and project administrators the intelligence they need to identify risks early and intervene before they become costly.",
     "enterWorkspace": "Enter Workspace",

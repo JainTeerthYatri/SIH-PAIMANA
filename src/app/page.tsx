@@ -919,15 +919,15 @@ export const Hero: React.FC = () => {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <ShieldCheck size={18} color="#F59A00" />
-              <span>Secure</span>
+              <span>{t('Home.secure')}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <Database size={18} color="#F59A00" />
-              <span>Data-Driven</span>
+              <span>{t('Home.dataDriven')}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <CheckCircle2 size={18} color="#F59A00" />
-              <span>Built for Bharat</span>
+              <span>{t('Home.builtForBharat')}</span>
             </div>
           </div>
         </div>
@@ -1265,7 +1265,7 @@ export const FeatureCards: React.FC = () => {
 
   const trustPillars = [
     { icon: ShieldCheck, title: 'Secure & Reliable', desc: 'Enterprise-grade security', color: '#2563EB', bg: '#EFF6FF' },
-    { icon: BarChart3, title: 'Data-Driven', desc: 'Evidence-based planning', color: '#059669', bg: '#ECFDF5' },
+    { icon: BarChart3, title: '{t('Home.dataDriven')}', desc: 'Evidence-based planning', color: '#059669', bg: '#ECFDF5' },
     { icon: Users, title: 'Collaborative', desc: 'Stronger together', color: '#7C3AED', bg: '#F5F3FF' },
     { icon: Building, title: 'Policy-Focused', desc: 'Impactful governance', color: '#EA580C', bg: '#FFF7ED' },
   ];
@@ -1590,7 +1590,7 @@ export const AboutSection: React.FC = () => {
     },
     {
       icon: Database,
-      title: 'Data-Driven',
+      title: '{t('Home.dataDriven')}',
       desc: 'Evidence-based planning for better outcomes',
       color: '#059669',
       bg: '#ECFDF5',
