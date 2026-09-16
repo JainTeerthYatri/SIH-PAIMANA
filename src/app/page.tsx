@@ -646,6 +646,8 @@ export const Navbar: React.FC = () => {
 ===================================================== */
 export const Hero: React.FC = () => {
   const router = useRouter();
+  const { t } = useLanguage();
+  
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   const slides: DynamicSlide[] = [
