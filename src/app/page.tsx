@@ -1542,6 +1542,7 @@ export const FeatureCards: React.FC = () => {
    7. ABOUT SECTION
 ===================================================== */
 export const AboutSection: React.FC = () => {
+  const { t } = useLanguage()
   const cards = [
     {
       value: '1,981',
@@ -1581,32 +1582,32 @@ export const AboutSection: React.FC = () => {
     },
   ];
 
-  const trustPillars = [
+    const trustPillars = [
     {
       icon: ShieldCheck,
-      title: 'Secure & Reliable',
-      desc: 'Enterprise-grade security for critical data',
+      title: t('Home.secureReliable'),
+      desc: t('Home.secureDesc'),
       color: '#2563EB',
       bg: '#EFF6FF',
     },
     {
       icon: Database,
-      title: '{t('Home.dataDriven')}',
-      desc: 'Evidence-based planning for better outcomes',
+      title: t('Home.dataDriven'),
+      desc: t('Home.dataDrivenDesc'),
       color: '#059669',
       bg: '#ECFDF5',
     },
     {
       icon: Users,
-      title: 'Collaborative',
-      desc: 'Stronger together with real-time intelligence',
+      title: t('Home.collaborative'),
+      desc: t('Home.collaborativeDesc'),
       color: '#7C3AED',
       bg: '#F5F3FF',
     },
     {
       icon: Landmark,
-      title: 'Policy-Focused',
-      desc: 'Enabling impactful governance decisions',
+      title: t('Home.policyFocused'),
+      desc: t('Home.policyDesc'),
       color: '#EA580C',
       bg: '#FFF7ED',
     },
