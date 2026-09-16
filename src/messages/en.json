@@ -84,6 +84,11 @@
     "api": "API & Data Feeds",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
-    "security": "Security Compliance"
+    "security": "Security Compliance",
+    "hero1": "Predict Risks.",
+    "hero2": "Protect Investments.",
+    "hero3": "Build a Stronger India.",
+    "heroDesc": "PAIMANA transforms infrastructure monitoring with AI-powered early warning signals, helping policymakers and agencies identify cost escalations and schedule delays before they impact national development.",
+    "explorePlatform": "Explore Platform"
   }
 }

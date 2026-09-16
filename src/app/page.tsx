@@ -647,7 +647,7 @@ export const Navbar: React.FC = () => {
 export const Hero: React.FC = () => {
   const router = useRouter();
   const { t } = useLanguage();
-  
+
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   const slides: DynamicSlide[] = [
@@ -828,13 +828,13 @@ export const Hero: React.FC = () => {
             }}
           >
             <span style={{ color: '#FFFFFF', display: 'block', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-              Predict Risks.
+              {t('Home.hero1')}
             </span>
             <span style={{ color: '#F59A00', display: 'block', textShadow: '0 2px 12px rgba(245,154,0,0.3)' }}>
-              Protect Investments.
+              {t('Home.hero2')}
             </span>
             <span style={{ color: '#FFFFFF', display: 'block', textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}>
-              Build a Stronger India.
+              {t('Home.hero3')}
             </span>
           </h1>
 
@@ -848,9 +848,7 @@ export const Hero: React.FC = () => {
               textShadow: '0 1px 4px rgba(0,0,0,0.6)',
             }}
           >
-            PAIMANA transforms infrastructure monitoring with AI-powered early
-            warning signals, helping policymakers and agencies identify cost
-            escalations and schedule delays before they impact national development.
+            {t('Home.heroDesc')}
           </p>
 
           <div
@@ -903,7 +901,7 @@ export const Hero: React.FC = () => {
                 boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
               }}
             >
-              <span>Explore Platform</span>
+              <span>{t('Home.explorePlatform')}</span>
               <BarChart2 size={18} color="#F59A00" />
             </button>
           </div>
