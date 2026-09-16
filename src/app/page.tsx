@@ -320,7 +320,7 @@ export const AnimatedBackground: React.FC = () => {
    3. NAVBAR
 ===================================================== */
 interface NavLink {
-  name: string;
+  key: string;
   href: string;
 }
 
@@ -330,7 +330,7 @@ export const Navbar: React.FC = () => {
   const { t } = useLanguage()
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState('Home');
+  const [activeNav, setActiveNav] = useState('home');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -346,7 +346,7 @@ export const Navbar: React.FC = () => {
           const height = el.offsetHeight;
           if (scrollPosition >= top && scrollPosition < top + height) {
             const formattedName = section.charAt(0).toUpperCase() + section.slice(1);
-            setActiveNav(formattedName);
+            setActiveNav(section);
             break;
           }
         }
@@ -368,7 +368,7 @@ export const Navbar: React.FC = () => {
 
   const handleNavClick = (e: React.MouseEvent, link: NavLink) => {
     e.preventDefault();
-    setActiveNav(link.name);
+    setActiveNav(link.key);
     setMobileOpen(false);
 
     if (pathname !== '/') {
@@ -420,10 +420,10 @@ export const Navbar: React.FC = () => {
             style={{ gap: '1.85rem', alignItems: 'center' }}
           >
             {navLinks.map((link) => {
-              const isActive = activeNav === link.name;
+              const isActive = activeNav === link.key;
               return (
                 <a
-                  key={link.name}
+                  key={link.key}
                   href={link.href}
                   onClick={(e) => handleNavClick(e, link)}
                   style={{
@@ -436,7 +436,7 @@ export const Navbar: React.FC = () => {
                     transition: 'color 0.2s ease',
                   }}
                 >
-                  {link.name}
+                  {t(`Nav.${link.key}`)}
                   {isActive && (
                     <span
                       style={{
@@ -512,17 +512,17 @@ export const Navbar: React.FC = () => {
           >
             {navLinks.map((link) => (
               <a
-                key={link.name}
+                key={link.key}
                 href={link.href}
                 onClick={(e) => handleNavClick(e, link)}
                 style={{
                   textDecoration: 'none',
                   fontSize: '1rem',
-                  fontWeight: activeNav === link.name ? 700 : 500,
-                  color: activeNav === link.name ? '#F59A00' : '#17365D',
+                  fontWeight: activeNav === link.key ? 700 : 500,
+                  color: activeNav === link.key ? '#F59A00' : '#17365D',
                 }}
               >
-                {link.name}
+                {t(`Nav.${link.key}`)}
               </a>
             ))}
 
