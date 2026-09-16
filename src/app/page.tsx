@@ -457,8 +457,9 @@ export const Navbar: React.FC = () => {
 
           <div
             className="desktop-nav-buttons hidden md:flex"
-            style={{ alignItems: 'center' }}
+            style={{ alignItems: 'center', gap: '0.75rem' }}
           >
+            <LanguageSwitcher />
             <button
               onClick={() => router.push('/login')}
               className="btn-primary"
@@ -476,11 +477,11 @@ export const Navbar: React.FC = () => {
                 gap: '0.4rem',
               }}
             >
-              <span>Workspace Login</span>
+              <span>{t('Common.login')}</span>
               <ArrowRight size={16} />
             </button>
           </div>
-
+          
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{
@@ -556,7 +557,7 @@ export const Navbar: React.FC = () => {
                   gap: '0.4rem',
                 }}
               >
-                <span>Workspace Login</span>
+                <span>{t('Common.login')}</span>
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -876,7 +877,7 @@ export const Hero: React.FC = () => {
                 boxShadow: '0 4px 18px rgba(245, 154, 0, 0.45)',
               }}
             >
-              <span>Workspace Login</span>
+              <span>{t('Common.login')}</span>
               <ArrowRight size={18} />
             </button>
 
@@ -3167,6 +3168,7 @@ export const AnalyticsPreview: React.FC = () => {
 ===================================================== */
 export const CTASection: React.FC = () => {
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <section
@@ -3194,9 +3196,9 @@ export const CTASection: React.FC = () => {
             letterSpacing: '-0.03em',
           }}
         >
-          Ready to Move From
+          {t('Home.ctaTitle1')}
           <br />
-          <span style={{ color: '#F59A00' }}>Monitoring to Prediction?</span>
+          <span style={{ color: '#F59A00' }}>{t('Home.ctaTitle2')}</span>
         </h2>
 
         <p
@@ -3208,8 +3210,7 @@ export const CTASection: React.FC = () => {
             lineHeight: 1.75,
           }}
         >
-          Give policymakers and project administrators the intelligence they need to identify risks
-          early and intervene before they become costly.
+          {t('Home.ctaDesc')}
         </p>
 
         <div
@@ -3238,7 +3239,7 @@ export const CTASection: React.FC = () => {
               boxShadow: '0 6px 20px rgba(245, 154, 0, 0.4)',
             }}
           >
-            <span>Enter Workspace</span>
+            <span>{t('Home.enterWorkspace')}</span>
             <ArrowRight size={18} />
           </button>
 
@@ -3259,7 +3260,7 @@ export const CTASection: React.FC = () => {
             }}
           >
             <BarChart2 size={18} style={{ color: '#F59A00' }} />
-            <span>Explore Intelligence</span>
+            <span>{t('Home.exploreIntel')}</span>
           </button>
         </div>
       </div>
