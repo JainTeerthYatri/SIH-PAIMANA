@@ -74,11 +74,12 @@ interface DynamicSlide {
    1. LOGO COMPONENT
 ===================================================== */
 export const Logo: React.FC<LogoProps> = ({
-const { t } = useLanguage();
+
   theme = 'light',
   variant = 'full',
   size = 'normal',
 }) => {
+  const { t } = useLanguage();
   const isDark = theme === 'dark';
   const isLarge = size === 'large';
   const isSmall = size === 'small';
