@@ -3275,6 +3275,8 @@ export const CTASection: React.FC = () => {
    13. FOOTER
 ===================================================== */
 export const Footer: React.FC = () => {
+  const { t } = useLanguage()
+
   return (
     <footer
       className="paimana-footer"
@@ -3296,8 +3298,7 @@ export const Footer: React.FC = () => {
               className="footer-brand-desc"
               style={{ marginTop: '1rem', fontSize: '0.88rem', lineHeight: 1.6, color: '#94A3B8' }}
             >
-              Predictive intelligence for infrastructure development. Empowering policymakers and
-              monitoring agencies across India with actionable early warnings.
+              {t('Home.footerDesc')}
             </p>
           </div>
 
@@ -3306,7 +3307,7 @@ export const Footer: React.FC = () => {
               className="footer-col-title"
               style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
             >
-              Platform
+              {t('Home.platform')}
             </h4>
             <ul
               className="footer-links-list"
@@ -3322,22 +3323,22 @@ export const Footer: React.FC = () => {
             >
               <li>
                 <Link href="/dashboard" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Dashboard
+                  {t('Sidebar.dashboard')}
                 </Link>
               </li>
               <li>
                 <Link href="/risk-intelligence" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Risk Intelligence
+                  {t('Home.riskIntel')}
                 </Link>
               </li>
               <li>
                 <Link href="/ai-assistant" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  AI Assistant
+                  {t('Sidebar.chatbot')}
                 </Link>
               </li>
               <li>
                 <Link href="/analytics" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Analytics
+                  {t('Sidebar.analytics')}
                 </Link>
               </li>
             </ul>
@@ -3348,7 +3349,7 @@ export const Footer: React.FC = () => {
               className="footer-col-title"
               style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
             >
-              Resources
+              {t('Nav.resources')}
             </h4>
             <ul
               className="footer-links-list"
@@ -3364,22 +3365,22 @@ export const Footer: React.FC = () => {
             >
               <li>
                 <a href="#insights" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Insights
+                  {t('Nav.insights')}
                 </a>
               </li>
               <li>
                 <Link href="/reports" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Reports
+                  {t('Sidebar.reports')}
                 </Link>
               </li>
               <li>
                 <a href="#documentation" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  Documentation
+                  {t('Home.docs')}
                 </a>
               </li>
               <li>
                 <a href="#api" style={{ color: '#94A3B8', textDecoration: 'none' }}>
-                  API & Data Feeds
+                  {t('Home.api')}
                 </a>
               </li>
             </ul>
@@ -3390,7 +3391,7 @@ export const Footer: React.FC = () => {
               className="footer-col-title"
               style={{ color: '#FFFFFF', fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}
             >
-              Government
+              {t('Home.government')}
             </h4>
             <ul
               className="footer-links-list"
@@ -3462,25 +3463,25 @@ export const Footer: React.FC = () => {
           }}
         >
           <div>
-            © {new Date().getFullYear()} PAIMANA — Ministry of Statistics & Programme Implementation
-            (MoSPI), Govt. of India.
+            © {new Date().getFullYear()} {t('Common.appName')} — {t('Common.ministry')} (MoSPI),
+            Govt. of India.
           </div>
           <div style={{ display: 'flex', gap: '1.5rem' }}>
             <a href="#privacy" style={{ color: '#64748B', textDecoration: 'none' }}>
-              Privacy Policy
+              {t('Home.privacy')}
             </a>
             <a href="#terms" style={{ color: '#64748B', textDecoration: 'none' }}>
-              Terms of Service
+              {t('Home.terms')}
             </a>
             <a href="#security" style={{ color: '#64748B', textDecoration: 'none' }}>
-              Security Compliance
+              {t('Home.security')}
             </a>
           </div>
         </div>
       </div>
     </footer>
-  );
-};
+  )
+}
 
 /* =====================================================
    14. MAIN PAGE COMPONENT
