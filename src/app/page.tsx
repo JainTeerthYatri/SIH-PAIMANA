@@ -1188,6 +1188,7 @@ export const TrustSection: React.FC = () => {
    6. FEATURE CARDS
 ===================================================== */
 export const FeatureCards: React.FC = () => {
+  const { t } = useLanguage();
   const router = useRouter();
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
