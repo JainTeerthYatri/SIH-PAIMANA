@@ -74,6 +74,7 @@ interface DynamicSlide {
    1. LOGO COMPONENT
 ===================================================== */
 export const Logo: React.FC<LogoProps> = ({
+const { t } = useLanguage();
   theme = 'light',
   variant = 'full',
   size = 'normal',
@@ -188,7 +189,7 @@ export const Logo: React.FC<LogoProps> = ({
             lineHeight: 1,
           }}
         >
-          AI-POWERED EARLY WARNING SYSTEM
+          {t('Common.tagline')}
         </div>
         {variant !== 'compact' && (
           <div
@@ -200,7 +201,7 @@ export const Logo: React.FC<LogoProps> = ({
               marginTop: '3px',
             }}
           >
-            Ministry of Statistics & Programme Implementation
+            {t('Common.ministry')}
             <br />
             Government of India
           </div>
@@ -996,7 +997,7 @@ export const TrustSection: React.FC = () => {
   const { t } = useLanguage();
   const partners = [
     {
-      name: 'Ministry of Statistics & Programme Implementation',
+      name: '{t('Common.ministry')}',
       code: 'MoSPI',
       icon: Landmark,
       color: '#2563EB',
