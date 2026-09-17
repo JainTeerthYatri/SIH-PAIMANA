@@ -997,8 +997,8 @@ export const Hero: React.FC = () => {
 export const TrustSection: React.FC = () => {
   const { t } = useLanguage();
   const partners = [
-    {
-      name: 't('Common.ministry')',
+  {
+      name: t('Common.ministry'),
       code: 'MoSPI',
       icon: Landmark,
       color: '#2563EB',
