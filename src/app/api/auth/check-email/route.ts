@@ -15,6 +15,24 @@ export async function POST(req: Request) {
 
     const normalized = email.trim().toLowerCase()
 
+    // 1) Super Admin — ENV se (Supabase Auth mein hona zaroori nahi)
+    const SUPER_EMAIL = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase()
+    if (SUPER_EMAIL && normalized === SUPER_EMAIL) {
+      return NextResponse.json({
+        exists: true,
+        role: 'super_admin',
+        email: process.env.SUPER_ADMIN_EMAIL,
+      })
+    }
+
+    // 2) Baaki users — Supabase Auth
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json(
+        { error: 'SERVER CONFIG ERROR: SERVICE_ROLE_KEY missing' },
+        { status: 500 }
+      )
+    }
+
     const { data, error } = await admin.auth.admin.listUsers({
       page: 1,
       perPage: 1000,
