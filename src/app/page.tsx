@@ -1204,14 +1204,13 @@ export const FeatureCards: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
-  const features = [
+    const features = [
     {
       id: 'early-warning-system',
       icon: ShieldAlert,
-      title: 'Early Warning System',
-      description:
-        'AI models detect risks early and provide actionable warnings before cost overruns materialize.',
-      tag: 'RISK DETECTION',
+      title: t('Home.feat1Title'),
+      description: t('Home.feat1Desc'),
+      tag: t('Home.feat1Tag'),
       themeColor: '#2563EB',
       bgColor: '#EFF6FF',
       tagBg: '#EFF6FF',
@@ -1223,10 +1222,9 @@ export const FeatureCards: React.FC = () => {
     {
       id: 'ai-powered-insights',
       icon: TrendingUp,
-      title: 'AI-Powered Insights',
-      description:
-        'Explainable AI reveals the key underlying factors behind every project risk through SHAP attribution.',
-      tag: 'EXPLAINABLE AI',
+      title: t('Home.feat2Title'),
+      description: t('Home.feat2Desc'),
+      tag: t('Home.feat2Tag'),
       themeColor: '#059669',
       bgColor: '#ECFDF5',
       tagBg: '#ECFDF5',
@@ -1238,10 +1236,9 @@ export const FeatureCards: React.FC = () => {
     {
       id: 'data-driven-decisions',
       icon: Database,
-      title: 'Data-Driven Decisions',
-      description:
-        'Transform historical infrastructure data into high-precision predictive intelligence.',
-      tag: 'DATA INTELLIGENCE',
+      title: t('Home.feat3Title'),
+      description: t('Home.feat3Desc'),
+      tag: t('Home.feat3Tag'),
       themeColor: '#7C3AED',
       bgColor: '#F5F3FF',
       tagBg: '#F5F3FF',
@@ -1253,10 +1250,9 @@ export const FeatureCards: React.FC = () => {
     {
       id: 'collaborative-monitoring',
       icon: Users,
-      title: 'Collaborative Monitoring',
-      description:
-        'Enable policymakers and monitoring agencies to act together with shared real-time intelligence.',
-      tag: 'MULTI-AGENCY',
+      title: t('Home.feat4Title'),
+      description: t('Home.feat4Desc'),
+      tag: t('Home.feat4Tag'),
       themeColor: '#EA580C',
       bgColor: '#FFF7ED',
       tagBg: '#FFF7ED',
@@ -1265,7 +1261,7 @@ export const FeatureCards: React.FC = () => {
       btnBg: '#EA580C',
       btnHover: '#C2410C',
     },
-  ];
+  ]
 
   const trustPillars = [
     { icon: ShieldCheck, title: t('Home.secureReliable'), desc: t('Home.secureDesc'), color: '#2563EB', bg: '#EFF6FF' },
