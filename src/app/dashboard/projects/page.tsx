@@ -89,7 +89,7 @@ export default function ProjectsPage() {
       const { data, error } = await supabase
         .from('paimana_projects')
         .select('*')
-        .limit(3000);
+        .limit(5000);
 
       if (error) {
         console.error('Error fetching data:', error);

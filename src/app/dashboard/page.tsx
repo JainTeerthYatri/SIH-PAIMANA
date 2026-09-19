@@ -131,7 +131,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .from('paimana_projects')
         .select('*')
-        .limit(2000);
+        .limit(5000);
 
       if (error) {
         console.error('Error fetching dashboard projects:', error);
