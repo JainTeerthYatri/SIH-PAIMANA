@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Ping Supabase REST Endpoint
         run: |
@@ -32,9 +34,10 @@ jobs:
 
       - name: Update Activity Heartbeat File
         run: |
-          date -u > .heartbeat
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main --rebase
+          date -u > .heartbeat
           git add .heartbeat
           git commit -m "chore: keep-alive heartbeat [skip ci]" || exit 0
-          git push
+          git push origin main
