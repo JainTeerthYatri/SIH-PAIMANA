@@ -18,17 +18,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ping Supabase REST Endpoint
+      - name: Write Ping to Supabase Table
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X GET \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/_keepalive?select=id&limit=1" \
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/_keepalive" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d '{"id": 1, "ping": "ok"}')
 
           echo "HTTP Status Code: $response"
 
-          if [ "$response" -ne 200 ]; then
-            echo "Error: Keep-alive request failed with status $response"
+          if [ "$response" -ne 200 ] && [ "$response" -ne 201 ]; then
+            echo "Error: Keep-alive write failed with status $response"
             exit 1
           fi
 
@@ -36,8 +39,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase
           date -u > .heartbeat
           git add .heartbeat
           git commit -m "chore: keep-alive heartbeat [skip ci]" || exit 0
+          git pull origin main --rebase
           git push origin main
